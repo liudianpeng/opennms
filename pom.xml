@@ -145,6 +145,7 @@
     <module>opennms-reporting</module>
     <module>opennms-web-api</module>
     <module>opennms-web-dependencies</module>
+    <module>opennms-web-js</module>
     <module>opennms-webapp</module>
     <module>opennms-webapp-rest</module>
     <module>opennms-wmi</module>
