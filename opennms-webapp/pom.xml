@@ -19,6 +19,7 @@
   </properties>
   <build>
     <plugins>
+      <!--
       <plugin>
         <groupId>org.jasig.maven</groupId>
         <artifactId>sass-maven-plugin</artifactId>
@@ -34,6 +35,7 @@
           <destination>${project.build.directory}/${project.build.finalName}/css</destination>
         </configuration>
       </plugin>
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -46,11 +48,11 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>org.opennms</groupId>
-                  <artifactId>opennms-web-js</artifactId>
+                  <artifactId>opennms-web-ui-assets</artifactId>
                   <version>${project.version}</version>
-                  <classifier>js</classifier>
+                  <classifier>dist</classifier>
                   <overWrite>true</overWrite>
-                  <outputDirectory>target/opennms-webapp-${project.version}/js</outputDirectory>
+                  <outputDirectory>target/opennms-webapp-${project.version}</outputDirectory>
                 </artifactItem>
               </artifactItems>
               <excludes>META-INF/**</excludes>
@@ -539,10 +541,15 @@
     <!-- this dependency only exists for unpacking into the final webapp, hence scope=provided -->
     <dependency>
       <groupId>org.opennms</groupId>
-      <artifactId>opennms-web-js</artifactId>
+      <artifactId>opennms-web-ui-assets</artifactId>
       <version>${project.version}</version>
-      <classifier>js</classifier>
+      <classifier>dist</classifier>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.opennms</groupId>
+      <artifactId>opennms-web-ui-assets</artifactId>
+      <scope>${onmsLibScope}</scope>
     </dependency>
 
     <!-- indirect OpenNMS dependencies that belong in $OPENNMS_HOME/lib -->
@@ -631,7 +638,6 @@
     <dependency>
       <groupId>org.opennms.features</groupId>
       <artifactId>org.opennms.features.discovery</artifactId>
-      <version>${project.version}</version>
       <scope>${onmsLibScope}</scope>
     </dependency>
     <dependency>
@@ -699,7 +705,6 @@
     <dependency>
       <groupId>org.opennms.features.measurements</groupId>
       <artifactId>org.opennms.features.measurements.impl</artifactId>
-      <version>${project.version}</version>
       <scope>${onmsLibScope}</scope>
     </dependency>
 

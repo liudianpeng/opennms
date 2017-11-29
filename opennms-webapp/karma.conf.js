@@ -19,16 +19,8 @@ module.exports = function(config) {
       'src/main/webapp/lib/jquery/dist/jquery.js',
       'src/main/webapp/lib/underscore/underscore.js',
       'src/main/webapp/lib/bootstrap/dist/js/bootstrap.js',
-      'src/main/webapp/lib/angular/angular.js',
+      'src/main/webapp/js/angular.js',
       'node_modules/angular-mocks/angular-mocks.js',
-      'src/main/webapp/lib/angular-resource/angular-resource.js',
-      'src/main/webapp/lib/angular-cookies/angular-cookies.js',
-      'src/main/webapp/lib/angular-sanitize/angular-sanitize.js',
-      'src/main/webapp/lib/angular-route/angular-route.js',
-      'src/main/webapp/lib/angular-animate/angular-animate.js',
-      'src/main/webapp/lib/angular-bootstrap/ui-bootstrap-tpls.js',
-      'src/main/webapp/lib/angular-loading-bar/build/loading-bar.js',
-      'src/main/webapp/lib/angular-growl-v2/build/angular-growl.js',
       // Global Variables/Methods
       'src/test/javascript/global.js',
       // OpenNMS applications (expected to be subdirectories inside 'js')

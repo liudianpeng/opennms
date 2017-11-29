@@ -145,7 +145,7 @@
     <module>opennms-reporting</module>
     <module>opennms-web-api</module>
     <module>opennms-web-dependencies</module>
-    <module>opennms-web-js</module>
+    <module>opennms-web-ui-assets</module>
     <module>opennms-webapp</module>
     <module>opennms-webapp-rest</module>
     <module>opennms-wmi</module>
@@ -1319,6 +1319,7 @@
     <jodaTimeVersion>2.1</jodaTimeVersion>
     <jrubyVersion>9.0.4.0</jrubyVersion>
     <jsoupVersion>1.7.2</jsoupVersion>
+    <jsonVersion>20171018</jsonVersion>
     <karafVersion>4.1.2</karafVersion>
     <felixVersion>3.0.0</felixVersion>
     <liquibaseVersion>2.0.5-ONMS20160524b</liquibaseVersion>
@@ -1382,8 +1383,8 @@
 
     <!-- nodejs development -->
     <frontendPluginVersion>1.6</frontendPluginVersion>
-    <nodeVersion>v6.10.2</nodeVersion>
-    <npmVersion>3.10.10</npmVersion>
+    <nodeVersion>v8.9.3</nodeVersion>
+    <npmVersion>5.5.1</npmVersion>
     <yarnVersion>v1.3.2</yarnVersion>
   </properties>
 
@@ -2771,6 +2772,11 @@
       <dependency>
         <groupId>org.opennms</groupId>
         <artifactId>opennms-web-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.opennms</groupId>
+        <artifactId>opennms-web-ui-assets</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
