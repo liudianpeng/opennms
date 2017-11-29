@@ -10,9 +10,6 @@
   <packaging>war</packaging>
   <name>OpenNMS Web Application</name>
   <properties>
-    <frontendPluginVersion>1.0</frontendPluginVersion>
-    <nodeVersion>v6.10.2</nodeVersion>
-    <npmVersion>3.10.10</npmVersion>
     <moduleName>org.opennms.dashboard.Dashboard</moduleName>
     <moduleHtml>index.html</moduleHtml>
     <web.port>8080</web.port>
@@ -42,21 +39,40 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
+            <id>unpack-js</id>
+            <phase>process-resources</phase>
+            <goals><goal>unpack</goal></goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.opennms</groupId>
+                  <artifactId>opennms-web-js</artifactId>
+                  <version>${project.version}</version>
+                  <classifier>js</classifier>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>target/opennms-webapp-${project.version}/js</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+              <excludes>META-INF/**</excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-jaxb-dependencies</id>
             <phase>test-compile</phase>
             <goals><goal>copy</goal></goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.opennms.dependencies</groupId>
+                  <artifactId>jaxb-dependencies</artifactId>
+                  <type>pom</type>
+                  <overWrite>false</overWrite>
+                  <outputDirectory>${basedir}/target/endorsed</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
           </execution>
         </executions>
-        <configuration>
-          <artifactItems>
-            <artifactItem>
-              <groupId>org.opennms.dependencies</groupId>
-              <artifactId>jaxb-dependencies</artifactId>
-              <type>pom</type>
-              <overWrite>false</overWrite>
-              <outputDirectory>${basedir}/target/endorsed</outputDirectory>
-            </artifactItem>
-          </artifactItems>
-        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
@@ -436,7 +452,7 @@
       <id>runInPlace</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <properties>
-    		<onmsLibScope>compile</onmsLibScope>
+        <onmsLibScope>compile</onmsLibScope>
       </properties>
       <dependencies>
         <dependency>
