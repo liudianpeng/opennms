@@ -536,6 +536,14 @@
     </profile>
   </profiles>
   <dependencies>
+    <!-- this dependency only exists for unpacking into the final webapp, hence scope=provided -->
+    <dependency>
+      <groupId>org.opennms</groupId>
+      <artifactId>opennms-web-js</artifactId>
+      <version>${project.version}</version>
+      <classifier>js</classifier>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- indirect OpenNMS dependencies that belong in $OPENNMS_HOME/lib -->
     <!-- these should all be <scope>${onmsLibScope}</scope> and also included in opennms-base-assembly -->
