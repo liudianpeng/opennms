@@ -58,6 +58,7 @@
 	session="true"
 	import="java.io.File"
 %>
+<%@ page import="org.opennms.core.resource.Vault" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 
@@ -80,10 +81,10 @@
 
     <div id="footer">
       <p>
-        OpenNMS <a href="support/about.jsp">Copyright</a> &copy; 2002-2017
+        OpenNMS <a href="about/index.jsp">Copyright</a> &copy; 2002-2017
 	    <a href="http://www.opennms.com/">The OpenNMS Group, Inc.</a>
 	    OpenNMS&reg; is a registered trademark of
-        <a href="http://www.opennms.com">The OpenNMS Group, Inc.</a>
+        <a href="http://www.opennms.com">The OpenNMS Group, Inc.</a> - Version: <%=Vault.getProperty("version.display")%>
 	  </p>
     </div>
   </c:otherwise>
