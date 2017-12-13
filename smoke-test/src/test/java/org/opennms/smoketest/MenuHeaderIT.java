@@ -1,4 +1,4 @@
-/*******************************************************************************
+ /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
  * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
@@ -126,8 +126,12 @@ public class MenuHeaderIT extends OpenNMSSeleniumTestCase {
         findElementByXpath("//h3[text()='Distributed Monitoring']");
 
         frontPage();
-        clickMenuItem(adminMenuName, "Help/Support", "opennms/support/index.htm");
+        clickMenuItem(adminMenuName, "Help", "opennms/help/index.jsp");
+        findElementByXpath("//h3[text()='Documentation']");
+        clickMenuItem(adminMenuName, "Support", "opennms/support/index.htm");
         findElementByXpath("//h3[text()='Commercial Support']");
+        clickMenuItem(adminMenuName, "About", "opennms/about/index.jsp");
+        findElementByXpath("//h3[text()='Version Details']");
 
         frontPage();
         clickMenuItem(adminMenuName, "Log Out", "opennms/j_spring_security_logout");
