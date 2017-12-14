@@ -28,12 +28,12 @@
 
 package org.opennms.smoketest;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.openqa.selenium.By;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class HelpPageIT extends OpenNMSSeleniumTestCase {
 
@@ -43,7 +43,7 @@ public class HelpPageIT extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void allButtonsPresent() throws Exception {
+    public void verifyAllButtonsPresent() throws Exception {
         final String[] links = new String[] {
                 // Online Links
                 "Installation Guide",
@@ -69,10 +69,5 @@ public class HelpPageIT extends OpenNMSSeleniumTestCase {
         for (final String text : links) {
             assertNotNull("Link with text '" + text + "' must exist.", m_driver.findElement(By.linkText(text)));
         }
-    }
-
-    @Test
-    public void hasAllPanels() throws Exception {
-        assertEquals(3, countElementsMatchingCss("h3.panel-title"));
     }
 }
