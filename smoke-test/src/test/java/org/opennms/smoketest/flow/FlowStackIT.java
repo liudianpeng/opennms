@@ -74,7 +74,9 @@ public class FlowStackIT {
 
     private static Logger LOG = LoggerFactory.getLogger(FlowStackIT.class);
 
-    private static int NETFLOW_LISTENER_UDP_PORT = 50000;
+    private static int NETFLOW5_LISTENER_UDP_PORT = 50000;
+    private static int NETFLOW9_LISTENER_UDP_PORT = 50001;
+    private static int IPFIX_LISTENER_UDP_PORT = 50002;
 
     private static final String TEMPLATE_NAME = "netflow";
 
@@ -119,7 +121,9 @@ public class FlowStackIT {
         final InetSocketAddress elasticRestAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.ELASTICSEARCH_5, 9200, "tcp");
         final InetSocketAddress opennmsWebAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.OPENNMS, 8980);
         final InetSocketAddress opennmsSshAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.OPENNMS, 8101);
-        final InetSocketAddress opennmsNetflowAdapterAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.OPENNMS, NETFLOW_LISTENER_UDP_PORT, "udp");
+        final InetSocketAddress opennmsNetflow5AdapterAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.OPENNMS, NETFLOW5_LISTENER_UDP_PORT, "udp");
+        final InetSocketAddress opennmsNetflow9AdapterAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.OPENNMS, NETFLOW9_LISTENER_UDP_PORT, "udp");
+        final InetSocketAddress opennmsIPFIXAdapterAddress = testEnvironment.getServiceAddress(NewTestEnvironment.ContainerAlias.OPENNMS, IPFIX_LISTENER_UDP_PORT, "udp");
         final String elasticRestUrl = String.format("http://%s:%d", elasticRestAddress.getHostString(), elasticRestAddress.getPort());
 
         // Proxy the REST service
@@ -139,7 +143,13 @@ public class FlowStackIT {
                 .build());
         try (final JestClient client = factory.getObject()) {
             // Read Netflow 5 packet
-           sendNetflowPacket(opennmsNetflowAdapterAddress);
+            sendPacket(opennmsNetflow5AdapterAddress, "/flows/netflow5.dat");
+
+            // Read netflow 9 packet
+            sendPacket(opennmsNetflow9AdapterAddress, "/flows/netflow9.dat");
+
+            // Read ipfix packet
+            sendPacket(opennmsIPFIXAdapterAddress, "/flows/ipfix.dat");
 
             // Ensure that the template has been created
             verify(client, (jestClient) -> {
@@ -155,22 +165,20 @@ public class FlowStackIT {
 
             // Verify the flow count via the REST API
             with().pollInterval(15, SECONDS).await().atMost(1, MINUTES)
-                    .until(() -> flowRestService.getFlowCount(0, System.currentTimeMillis()), equalTo(2L));
+                    .until(() -> flowRestService.getFlowCount(0, System.currentTimeMillis()), equalTo(16L));
         }
     }
 
-    private byte[] getNetflowPacketContent() throws IOException {
-        try (InputStream is = getClass().getResourceAsStream("/flows/netflow5.dat")) {
-            final byte[] bytes = new byte[is.available()];
-            ByteStreams.readFully(is, bytes);
-            return bytes;
+    private byte[] getPacketContent(final String filename) throws IOException {
+        try (InputStream is = getClass().getResourceAsStream(filename)) {
+            return ByteStreams.toByteArray(is);
         }
     }
 
-    // Sends a netflow Packet to the given destination address
-    private void sendNetflowPacket(InetSocketAddress destinationAddress) throws IOException {
-        byte[] bytes = getNetflowPacketContent();
-        // now send to netflow 5 adapter
+    // Sends a Packet to the given destination address
+    private void sendPacket(final InetSocketAddress destinationAddress, final String filename) throws IOException {
+        byte[] bytes = getPacketContent(filename);
+        // now send to adapter
         try (DatagramSocket serverSocket = new DatagramSocket(0)) { // opens any free port
             final DatagramPacket sendPacket = new DatagramPacket(bytes, bytes.length,
                     destinationAddress.getAddress(), destinationAddress.getPort());
@@ -180,7 +188,7 @@ public class FlowStackIT {
 
     // Configures the elastic bundle and also installs the flows feature to expose a NetflowRepository.
     // This is required, otherwise persisting does not work, as no FlowRepository implementation exists.
-    private void setupOnmsContainer(InetSocketAddress opennmsSshAddress) throws Exception {
+    private void setupOnmsContainer(final InetSocketAddress opennmsSshAddress) throws Exception {
         try (final SshClient sshClient = new SshClient(opennmsSshAddress, "admin", "admin")) {
             PrintStream pipe = sshClient.openShell();
 
