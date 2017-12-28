@@ -3,20 +3,7 @@
   "query": {
     "bool": {
       "filter": [
-        {
-          "range": {
-            "@timestamp": {
-              "gte": ${start?long?c},
-              "lte": ${end?long?c},
-              "format": "epoch_millis"
-            }
-          }
-        },
-        {
-          "terms": {
-            "node_exporter.node_criteria": ["${nodeCriteria?json_string}"]
-          }
-        }
+        <#list filters as filter>${filter}<#sep>,</#list>
       ]
     }
   },

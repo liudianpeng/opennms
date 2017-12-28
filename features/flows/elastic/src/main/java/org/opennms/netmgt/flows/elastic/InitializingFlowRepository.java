@@ -43,6 +43,7 @@ import org.opennms.netmgt.flows.api.NF5Packet;
 import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
 import org.opennms.netmgt.flows.elastic.template.IndexSettings;
+import org.opennms.netmgt.flows.filter.api.Filter;
 
 import com.google.common.collect.Table;
 
@@ -77,38 +78,38 @@ public class InitializingFlowRepository implements FlowRepository {
     }
 
     @Override
-    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(long start, long end) {
-        return delegate.getExportersWithFlows(start, end);
+    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(List<Filter> filters) {
+        return delegate.getExportersWithFlows(filters);
     }
 
     @Override
-    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(NodeCriteria node, long start, long end) {
-        return delegate.getSnmpInterfaceIdsWithFlows(node, start, end);
+    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(List<Filter> filters) {
+        return delegate.getSnmpInterfaceIdsWithFlows(filters);
     }
 
     @Override
-    public CompletableFuture<Long> getFlowCount(long start, long end) {
-        return delegate.getFlowCount(start, end);
+    public CompletableFuture<Long> getFlowCount(List<Filter> filters) {
+        return delegate.getFlowCount(filters);
     }
 
     @Override
-    public CompletableFuture<List<TrafficSummary<String>>> getTopNApplications(int N, long start, long end) {
-        return delegate.getTopNApplications(N, start, end);
+    public CompletableFuture<List<TrafficSummary<String>>> getTopNApplications(int N, List<Filter> filters) {
+        return delegate.getTopNApplications(N, filters);
     }
 
     @Override
-    public CompletableFuture<Table<Directional<String>, Long, Double>> getTopNApplicationsSeries(int N, long start, long end, long step) {
-        return delegate.getTopNApplicationsSeries(N, start, end, step);
+    public CompletableFuture<Table<Directional<String>, Long, Double>> getTopNApplicationsSeries(int N, long step, List<Filter> filters) {
+        return delegate.getTopNApplicationsSeries(N, step, filters);
     }
 
     @Override
-    public CompletableFuture<List<TrafficSummary<ConversationKey>>> getTopNConversations(int N, long start, long end) {
-        return delegate.getTopNConversations(N, start, end);
+    public CompletableFuture<List<TrafficSummary<ConversationKey>>> getTopNConversations(int N, List<Filter> filters) {
+        return delegate.getTopNConversations(N, filters);
     }
 
     @Override
-    public CompletableFuture<Table<Directional<ConversationKey>, Long, Double>> getTopNConversationsSeries(int N, long start, long end, long step) {
-        return delegate.getTopNConversationsSeries(N, start, end, step);
+    public CompletableFuture<Table<Directional<ConversationKey>, Long, Double>> getTopNConversationsSeries(int N, long step, List<Filter> filters) {
+        return delegate.getTopNConversationsSeries(N, step, filters);
     }
 
     private void ensureInitialized() {

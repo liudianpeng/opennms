@@ -35,6 +35,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 
 import java.net.MalformedURLException;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -54,9 +55,13 @@ import org.opennms.netmgt.flows.api.FlowSource;
 import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
 import org.opennms.netmgt.flows.elastic.template.IndexSettings;
+import org.opennms.netmgt.flows.filter.api.ExporterNodeFilter;
+import org.opennms.netmgt.flows.filter.api.Filter;
+import org.opennms.netmgt.flows.filter.api.TimeRangeFilter;
 import org.opennms.plugins.elasticsearch.rest.RestClientFactory;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
 
 import io.searchbox.client.JestClient;
@@ -97,7 +102,7 @@ public class FlowQueryIT {
         initializer.initialize();
 
         // The repository should be empty
-        assertThat(flowRepository.getFlowCount(0, 0).get(), equalTo(0L));
+        assertThat(flowRepository.getFlowCount(getFilters()).get(), equalTo(0L));
 
         // Load the default set of flows
         loadDefaultFlows();
@@ -105,19 +110,20 @@ public class FlowQueryIT {
 
     @Test
     public void canRetrieveNodesAndSnmpInterfaces() throws ExecutionException, InterruptedException {
-        final Set<NodeCriteria> nodeCriterias = flowRepository.getExportersWithFlows(0, 100).get();
+        final Set<NodeCriteria> nodeCriterias = flowRepository.getExportersWithFlows(getFilters()).get();
         assertThat(nodeCriterias, hasSize(2));
         assertThat(nodeCriterias, containsInAnyOrder(new NodeCriteria("SomeFs", "SomeFid"),
                 new NodeCriteria("SomeFs", "AnotherFid")));
 
-        final Set<Integer> snmpInterfaceIds = flowRepository.getSnmpInterfaceIdsWithFlows(new NodeCriteria("SomeFs", "SomeFid"), 0, 100).get();
+        final Set<Integer> snmpInterfaceIds = flowRepository.getSnmpInterfaceIdsWithFlows(getFilters(
+                new ExporterNodeFilter(new NodeCriteria("SomeFs", "SomeFid")))).get();
         assertThat(snmpInterfaceIds, hasSize(1));
         assertThat(snmpInterfaceIds, containsInAnyOrder(1));
     }
 
     @Test
     public void canRetrieveTopNApps() throws ExecutionException, InterruptedException {
-        final List<TrafficSummary<String>> appTrafficSummary = flowRepository.getTopNApplications(10, 0, 100).get();
+        final List<TrafficSummary<String>> appTrafficSummary = flowRepository.getTopNApplications(10, getFilters()).get();
         assertThat(appTrafficSummary, hasSize(2));
         final TrafficSummary<String> HTTPS = appTrafficSummary.get(0);
         assertThat(HTTPS.getEntity(), equalTo("https"));
@@ -133,11 +139,11 @@ public class FlowQueryIT {
     @Test
     public void canRetrieveTopNAppsSeries() throws ExecutionException, InterruptedException {
         // Top 10
-        Table<Directional<String>, Long, Double> appTraffic = flowRepository.getTopNApplicationsSeries(10, 0, 100, 10).get();
+        Table<Directional<String>, Long, Double> appTraffic = flowRepository.getTopNApplicationsSeries(10, 10, getFilters()).get();
         assertThat(appTraffic.rowKeySet(), hasSize(4));
 
         // Top 1
-        appTraffic = flowRepository.getTopNApplicationsSeries(1, 0, 100, 10).get();
+        appTraffic = flowRepository.getTopNApplicationsSeries(1, 10, getFilters()).get();
         assertThat(appTraffic.rowKeySet(), hasSize(2));
         assertThat(appTraffic.rowKeySet(), containsInAnyOrder(new Directional<>("https", true),
                 new Directional<>("https", false)));
@@ -145,7 +151,7 @@ public class FlowQueryIT {
 
     @Test
     public void canRetrieveTopNConversations() throws ExecutionException, InterruptedException {
-        final List<TrafficSummary<ConversationKey>> convoTrafficSummary = flowRepository.getTopNConversations(2, 0, 100).get();
+        final List<TrafficSummary<ConversationKey>> convoTrafficSummary = flowRepository.getTopNConversations(2, getFilters()).get();
         assertThat(convoTrafficSummary, hasSize(2));
 
         TrafficSummary<ConversationKey> convo = convoTrafficSummary.get(0);
@@ -163,7 +169,7 @@ public class FlowQueryIT {
 
     @Test
     public void canRetrieveTopNConversationsSeries() throws ExecutionException, InterruptedException {
-        final Table<Directional<ConversationKey>, Long, Double> convoTraffic = flowRepository.getTopNConversationsSeries(10, 0, 100, 10).get();
+        final Table<Directional<ConversationKey>, Long, Double> convoTraffic = flowRepository.getTopNConversationsSeries(10, 10, getFilters()).get();
         assertThat(convoTraffic.rowKeySet(), hasSize(6));
     }
 
@@ -187,7 +193,12 @@ public class FlowQueryIT {
         flowRepository.enrichAndPersistFlows(flows, new FlowSource("test", "127.0.0.1"));
 
         // Retrieve all the flows we just persisted
-        await().atMost(30, TimeUnit.SECONDS).until(() -> flowRepository.getFlowCount(0, System.currentTimeMillis()).get(), equalTo(Long.valueOf(flows.size())));
+        await().atMost(30, TimeUnit.SECONDS).until(() -> flowRepository.getFlowCount(getFilters()).get(), equalTo(Long.valueOf(flows.size())));
     }
 
+    private List<Filter> getFilters(Filter... filters) {
+        final List<Filter> filterList = Lists.newArrayList(filters);
+        filterList.add(new TimeRangeFilter(0, System.currentTimeMillis()));
+        return filterList;
+    }
 }

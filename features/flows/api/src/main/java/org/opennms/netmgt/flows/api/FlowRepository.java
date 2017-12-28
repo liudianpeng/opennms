@@ -33,24 +33,26 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.opennms.netmgt.flows.filter.api.Filter;
+
 import com.google.common.collect.Table;
 
 public interface FlowRepository {
 
     void persistNetFlow5Packets(Collection<? extends NF5Packet> packets, FlowSource source) throws FlowException;
 
-    CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(long start, long end);
+    CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(List<Filter> filters);
 
-    CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(NodeCriteria node, long start, long end);
+    CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(List<Filter> filters);
 
-    CompletableFuture<Long> getFlowCount(long start, long end);
+    CompletableFuture<Long> getFlowCount(List<Filter> filters);
 
-    CompletableFuture<List<TrafficSummary<String>>> getTopNApplications(int N, long start, long end);
+    CompletableFuture<List<TrafficSummary<String>>> getTopNApplications(int N, List<Filter> filters);
 
-    CompletableFuture<Table<Directional<String>, Long, Double>> getTopNApplicationsSeries(int N, long start, long end, long step);
+    CompletableFuture<Table<Directional<String>, Long, Double>> getTopNApplicationsSeries(int N, long step, List<Filter> filters);
 
-    CompletableFuture<List<TrafficSummary<ConversationKey>>> getTopNConversations(int N, long start, long end);
+    CompletableFuture<List<TrafficSummary<ConversationKey>>> getTopNConversations(int N, List<Filter> filters);
 
-    CompletableFuture<Table<Directional<ConversationKey>, Long, Double>> getTopNConversationsSeries(int N, long start, long end, long step);
+    CompletableFuture<Table<Directional<ConversationKey>, Long, Double>> getTopNConversationsSeries(int N, long step, List<Filter> filters);
 
 }

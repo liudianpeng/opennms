@@ -8,15 +8,7 @@
             "${groupByTerm?json_string}": [<#list topN as topNTerm>"${topNTerm?json_string}"<#sep>,</#list>]
           }
         },
-        {
-          "range": {
-            "@timestamp": {
-              "gte": ${start?long?c},
-              "lte": ${end?long?c},
-              "format": "epoch_millis"
-            }
-          }
-        }
+        <#list filters as filter>${filter}<#sep>,</#list>
       ]
     }
   },

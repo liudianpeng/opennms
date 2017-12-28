@@ -49,6 +49,7 @@ import org.opennms.netmgt.flows.api.FlowSource;
 import org.opennms.netmgt.flows.api.NF5Packet;
 import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
+import org.opennms.netmgt.flows.filter.api.Filter;
 import org.opennms.plugins.elasticsearch.rest.BulkResultWrapper;
 import org.opennms.plugins.elasticsearch.rest.FailedItem;
 import org.slf4j.Logger;
@@ -172,8 +173,8 @@ public class ElasticFlowRepository implements FlowRepository {
 
 
     @Override
-    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(long start, long end) {
-        final String query = searchQueryProvider.getUniqueNodeExporters(start, end, 100);
+    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(List<Filter> filters) {
+        final String query = searchQueryProvider.getUniqueNodeExporters(100, filters);
         return searchAsync(query).thenApply(res -> res.getAggregations().getTermsAggregation("criterias")
                 .getBuckets()
                 .stream()
@@ -182,8 +183,8 @@ public class ElasticFlowRepository implements FlowRepository {
     }
 
     @Override
-    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(NodeCriteria node, long start, long end) {
-        final String query = searchQueryProvider.getUniqueSnmpInterfaces(node, start, end, 100);
+    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(List<Filter> filters) {
+        final String query = searchQueryProvider.getUniqueSnmpInterfaces(100, filters);
         return searchAsync(query).thenApply(res -> {
             final Set<Integer> interfaces = Sets.newHashSet();
             res.getAggregations().getTermsAggregation("input_snmp").getBuckets()
@@ -201,24 +202,24 @@ public class ElasticFlowRepository implements FlowRepository {
     }
 
     @Override
-    public CompletableFuture<Long> getFlowCount(long start, long end) {
-        final String query = searchQueryProvider.getFlowCountQuery(start, end);
+    public CompletableFuture<Long> getFlowCount(List<Filter> filters) {
+        final String query = searchQueryProvider.getFlowCountQuery(filters);
         return searchAsync(query).thenApply(SearchResult::getTotal);
     }
 
     @Override
-    public CompletableFuture<List<TrafficSummary<String>>> getTopNApplications(int N, long start, long end) {
-        return getTotalBytesFromTopN(N, start, end, "netflow.application");
+    public CompletableFuture<List<TrafficSummary<String>>> getTopNApplications(int N, List<Filter> filters) {
+        return getTotalBytesFromTopN(N, "netflow.application", filters);
     }
 
     @Override
-    public CompletableFuture<Table<Directional<String>, Long, Double>> getTopNApplicationsSeries(int N, long start, long end, long step) {
-        return getSeriesFromTopN(N, start, end, step, "netflow.application").thenApply((res) -> mapTable(res, s -> s));
+    public CompletableFuture<Table<Directional<String>, Long, Double>> getTopNApplicationsSeries(int N, long step, List<Filter> filters) {
+        return getSeriesFromTopN(N, step, "netflow.application", filters).thenApply((res) -> mapTable(res, s -> s));
     }
 
     @Override
-    public CompletableFuture<List<TrafficSummary<ConversationKey>>> getTopNConversations(int N, long start, long end) {
-        return getTotalBytesFromTopN(N, start, end, "netflow.convo_key").thenApply((res) -> res.stream()
+    public CompletableFuture<List<TrafficSummary<ConversationKey>>> getTopNConversations(int N, List<Filter> filters) {
+        return getTotalBytesFromTopN(N, "netflow.convo_key", filters).thenApply((res) -> res.stream()
                 .map(summary -> {
                     // Map the strings to the corresponding conversation keys
                     final TrafficSummary<ConversationKey> out = new TrafficSummary<>(ConversationKeyUtils.fromJsonString(summary.getEntity()));
@@ -230,23 +231,23 @@ public class ElasticFlowRepository implements FlowRepository {
     }
 
     @Override
-    public CompletableFuture<Table<Directional<ConversationKey>, Long, Double>> getTopNConversationsSeries(int N, long start, long end, long step) {
-        return getSeriesFromTopN(N, start, end, step, "netflow.convo_key").thenApply((res) -> mapTable(res, ConversationKeyUtils::fromJsonString));
+    public CompletableFuture<Table<Directional<ConversationKey>, Long, Double>> getTopNConversationsSeries(int N, long step, List<Filter> filters) {
+        return getSeriesFromTopN(N, step, "netflow.convo_key", filters).thenApply((res) -> mapTable(res, ConversationKeyUtils::fromJsonString));
     }
 
-    private CompletableFuture<List<String>> getTopN(int N, long start, long end, String groupByTerm) {
+    private CompletableFuture<List<String>> getTopN(int N, String groupByTerm, List<Filter> filters) {
         // Increase the multiplier for increased accuracy
         // See https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-terms-aggregation.html#_size
         final int multiplier = 2;
-        final String query = searchQueryProvider.getTopNQuery(multiplier*N, start, end, groupByTerm);
+        final String query = searchQueryProvider.getTopNQuery(multiplier*N, groupByTerm, filters);
         return searchAsync(query).thenApply(res -> res.getAggregations().getTermsAggregation("grouped_by").getBuckets().stream()
                 .map(TermsAggregation.Entry::getKey)
                 .limit(N)
                 .collect(Collectors.toList()));
     }
 
-    private CompletableFuture<Table<Directional<String>, Long, Double>> getSeriesFromTopN(List<String> topN, long start, long end, long step, String groupByTerm) {
-        final String query = searchQueryProvider.getSeriesFromTopNQuery(topN, start, end, step, groupByTerm);
+    private CompletableFuture<Table<Directional<String>, Long, Double>> getSeriesFromTopN(List<String> topN, long step, String groupByTerm, List<Filter> filters) {
+        final String query = searchQueryProvider.getSeriesFromTopNQuery(topN, step, groupByTerm, filters);
         return searchAsync(query).thenApply(res -> {
             // Build a table using the search results
             final ImmutableTable.Builder<Directional<String>, Long, Double> results = ImmutableTable.builder();
@@ -278,14 +279,16 @@ public class ElasticFlowRepository implements FlowRepository {
         });
     }
 
-    private CompletableFuture<Table<Directional<String>, Long, Double>> getSeriesFromTopN(int N, long start, long end, long step,
-                                                                                          String groupByTerm) {
-        return getTopN(N, start, end, groupByTerm)
-                .thenCompose((topN) -> getSeriesFromTopN(topN, start, end, step, groupByTerm));
+    private CompletableFuture<Table<Directional<String>, Long, Double>> getSeriesFromTopN(int N, long step,
+                                                                                          String groupByTerm,
+                                                                                          List<Filter> filters) {
+        return getTopN(N, groupByTerm, filters)
+                .thenCompose((topN) -> getSeriesFromTopN(topN, step, groupByTerm, filters));
     }
 
-    private CompletableFuture<List<TrafficSummary<String>>> getTotalBytesFromTopN(List<String> topN, long start, long end, String groupByTerm) {
-        final String query = searchQueryProvider.getTotalBytesFromTopNQuery(topN, start, end, groupByTerm);
+    private CompletableFuture<List<TrafficSummary<String>>> getTotalBytesFromTopN(List<String> topN, String groupByTerm,
+                                                                                  List<Filter> filters) {
+        final String query = searchQueryProvider.getTotalBytesFromTopNQuery(topN, groupByTerm, filters);
         return searchAsync(query).thenApply(res -> {
             // Build the traffic summaries from the search results
             final Map<String, TrafficSummary<String>> summaries = new HashMap<>();
@@ -318,9 +321,10 @@ public class ElasticFlowRepository implements FlowRepository {
         });
     }
 
-    private CompletableFuture<List<TrafficSummary<String>>> getTotalBytesFromTopN(int N, long start, long end, String groupByTerm) {
-        return getTopN(N, start, end, groupByTerm)
-                .thenCompose((topN) -> getTotalBytesFromTopN(topN, start, end, groupByTerm));
+    private CompletableFuture<List<TrafficSummary<String>>> getTotalBytesFromTopN(int N, String groupByTerm,
+                                                                                  List<Filter> filters) {
+        return getTopN(N, groupByTerm, filters)
+                .thenCompose((topN) -> getTotalBytesFromTopN(topN, groupByTerm, filters));
     }
 
     private <T extends JestResult> T executeRequest(Action<T> clientRequest) throws FlowException {

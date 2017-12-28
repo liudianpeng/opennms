@@ -43,6 +43,8 @@ import javax.ws.rs.WebApplicationException;
 
 import org.opennms.netmgt.flows.api.ConversationKey;
 import org.opennms.netmgt.flows.api.FlowRepository;
+import org.opennms.netmgt.flows.filter.api.Filter;
+import org.opennms.netmgt.flows.filter.api.TimeRangeFilter;
 import org.opennms.netmgt.flows.rest.FlowRestService;
 import org.opennms.netmgt.flows.rest.model.FlowSeriesResponse;
 import org.opennms.netmgt.flows.rest.model.FlowSummaryResponse;
@@ -58,11 +60,16 @@ public class FlowRestServiceImpl implements FlowRestService {
         this.flowRepository = Objects.requireNonNull(flowRepository);
     }
 
+    private List<Filter> getTimeRangeFilter(long start, long end) {
+        return Lists.newArrayList(new TimeRangeFilter(start, end));
+    }
+
     @Override
     public Long getFlowCount(long start, long end) {
         final long effectiveEnd = getEffectiveEnd(end);
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
-        return waitForFuture(flowRepository.getFlowCount(effectiveStart, effectiveEnd));
+
+        return waitForFuture(flowRepository.getFlowCount(getTimeRangeFilter(effectiveStart, effectiveEnd)));
     }
 
     @Override
@@ -70,8 +77,8 @@ public class FlowRestServiceImpl implements FlowRestService {
         final long effectiveEnd = getEffectiveEnd(end);
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
 
-        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getTopNApplicationsSeries(N, effectiveStart,
-                effectiveEnd, step).thenApply(res -> {
+        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getTopNApplicationsSeries(N, step,
+                getTimeRangeFilter(effectiveStart, effectiveEnd)).thenApply(res -> {
             final FlowSeriesResponse response = new FlowSeriesResponse();
             response.setStart(effectiveStart);
             response.setEnd(effectiveEnd);
@@ -89,7 +96,8 @@ public class FlowRestServiceImpl implements FlowRestService {
         final long effectiveEnd = getEffectiveEnd(end);
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
 
-        final CompletableFuture<FlowSummaryResponse> future = flowRepository.getTopNApplications(N, effectiveStart, effectiveEnd).thenApply(res -> {
+        final CompletableFuture<FlowSummaryResponse> future = flowRepository.getTopNApplications(N,
+                getTimeRangeFilter(effectiveStart, effectiveEnd)).thenApply(res -> {
             final FlowSummaryResponse response = new FlowSummaryResponse();
             response.setStart(effectiveStart);
             response.setEnd(effectiveEnd);
@@ -107,7 +115,8 @@ public class FlowRestServiceImpl implements FlowRestService {
         final long effectiveEnd = getEffectiveEnd(end);
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
 
-        final CompletableFuture<FlowSummaryResponse> future = flowRepository.getTopNConversations(N, effectiveStart, effectiveEnd).thenApply(res -> {
+        final CompletableFuture<FlowSummaryResponse> future = flowRepository.getTopNConversations(N,
+                getTimeRangeFilter(effectiveStart, effectiveEnd)).thenApply(res -> {
             final FlowSummaryResponse response = new FlowSummaryResponse();
             response.setStart(effectiveStart);
             response.setEnd(effectiveEnd);
@@ -130,7 +139,8 @@ public class FlowRestServiceImpl implements FlowRestService {
         final long effectiveEnd = getEffectiveEnd(end);
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
 
-        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getTopNConversationsSeries(N, effectiveStart, effectiveEnd, step).thenApply(res -> {
+        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getTopNConversationsSeries(N, step,
+                getTimeRangeFilter(effectiveStart, effectiveEnd)).thenApply(res -> {
             final FlowSeriesResponse response = new FlowSeriesResponse();
             response.setStart(effectiveEnd);
             response.setEnd(effectiveEnd);
@@ -155,7 +165,7 @@ public class FlowRestServiceImpl implements FlowRestService {
         return effectiveStart;
     }
 
-    public static long getEffectiveEnd(long end) {
+    private static long getEffectiveEnd(long end) {
         // If end is not strictly positive, use the current timestamp
         return end > 0 ? end : new Date().getTime();
     }

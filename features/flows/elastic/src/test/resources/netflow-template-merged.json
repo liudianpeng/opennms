@@ -856,6 +856,10 @@
             },
             "node_id": {
               "type": "integer"
+            },
+            "node_criteria": {
+              "type": "keyword",
+              "norms": false
             }
           }
         },
@@ -873,6 +877,10 @@
             },
             "node_id": {
               "type": "integer"
+            },
+            "node_criteria": {
+              "type": "keyword",
+              "norms": false
             }
           }
         },
@@ -890,6 +898,10 @@
             },
             "node_id": {
               "type": "integer"
+            },
+            "node_criteria": {
+              "type": "keyword",
+              "norms": false
             }
           }
         }

@@ -31,10 +31,16 @@ package org.opennms.netmgt.flows.elastic;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.opennms.netmgt.flows.api.NodeCriteria;
+import org.opennms.netmgt.flows.filter.api.ExporterNodeFilter;
+import org.opennms.netmgt.flows.filter.api.Filter;
+import org.opennms.netmgt.flows.filter.api.FilterVisitor;
+import org.opennms.netmgt.flows.filter.api.TimeRangeFilter;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -52,7 +58,7 @@ import freemarker.template.TemplateExceptionHandler;
  * in Java code, and is much less verbose than storing these as POJOs.
  *
  */
-public class SearchQueryProvider {
+public class SearchQueryProvider implements FilterVisitor<String> {
 
     private final Configuration cfg = new Configuration(Configuration.VERSION_2_3_23);
 
@@ -63,56 +69,55 @@ public class SearchQueryProvider {
         cfg.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
     }
 
-    public String getFlowCountQuery(long start, long end) {
+    public String getFlowCountQuery(List<Filter> filters) {
         return render("flow_count.ftl", ImmutableMap.builder()
-                .put("start", start)
-                .put("end", end)
+                .put("filters", getFilterQueries(filters))
                 .build());
     }
 
-    public String getUniqueNodeExporters(long start, long end, long size) {
+    public String getUniqueNodeExporters(long size, List<Filter> filters) {
         return render("unique_node_exporters.ftl", ImmutableMap.builder()
-                .put("start", start)
-                .put("end", end)
+                .put("filters", getFilterQueries(filters))
                 .put("size", size)
                 .build());
     }
 
-    public String getUniqueSnmpInterfaces(NodeCriteria nodeCriteria, long start, long end, long size) {
+    public String getUniqueSnmpInterfaces(long size, List<Filter> filters) {
         return render("unique_snmp_interfaces.ftl", ImmutableMap.builder()
-                .put("nodeCriteria", nodeCriteria.getCriteria())
-                .put("start", start)
-                .put("end", end)
+                .put("filters", getFilterQueries(filters))
                 .put("size", size)
                 .build());
     }
 
-    public String getTopNQuery(int N, long start, long end, String groupByTerm) {
+    public String getTopNQuery(int N, String groupByTerm, List<Filter> filters) {
         return render("top_n.ftl", ImmutableMap.builder()
-                .put("start", start)
-                .put("end", end)
+                .put("filters", getFilterQueries(filters))
                 .put("N", N)
                 .put("groupByTerm", groupByTerm)
                 .build());
     }
 
-    public String getSeriesFromTopNQuery(List<String> topN, long start, long end, long step, String groupByTerm) {
+    public String getSeriesFromTopNQuery(List<String> topN, long step, String groupByTerm, List<Filter> filters) {
         return render("top_n_series.ftl", ImmutableMap.builder()
-                .put("start", start)
-                .put("end", end)
+                .put("filters", getFilterQueries(filters))
                 .put("topN", topN)
                 .put("step", step)
                 .put("groupByTerm", groupByTerm)
                 .build());
     }
 
-    public String getTotalBytesFromTopNQuery(List<String> topN, long start, long end, String groupByTerm) {
+    public String getTotalBytesFromTopNQuery(List<String> topN, String groupByTerm, List<Filter> filters) {
         return render("top_n_totals.ftl", ImmutableMap.builder()
-                .put("start", start)
-                .put("end", end)
+                .put("filters", getFilterQueries(filters))
                 .put("topN", topN)
                 .put("groupByTerm", groupByTerm)
                 .build());
+    }
+
+    private List<String> getFilterQueries(List<Filter> filters) {
+        return filters.stream()
+                .map(f -> f.visit(this))
+                .collect(Collectors.toList());
     }
 
     private String render(String templateName, Map<Object, Object> context) {
@@ -124,5 +129,20 @@ public class SearchQueryProvider {
         } catch (IOException|TemplateException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public String visit(ExporterNodeFilter exporterNodeFilter) {
+        return render("filter_exporter_node.ftl", ImmutableMap.builder()
+                .put("nodeCriteria", exporterNodeFilter.getCriteria().getCriteria())
+                .build());
+    }
+
+    @Override
+    public String visit(TimeRangeFilter timeRangeFilter) {
+        return render("filter_time_range.ftl", ImmutableMap.builder()
+                .put("start", timeRangeFilter.getStart())
+                .put("end", timeRangeFilter.getEnd())
+                .build());
     }
 }
