@@ -31,6 +31,7 @@ package org.opennms.netmgt.flows.elastic;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import org.opennms.netmgt.flows.api.ConversationKey;
@@ -39,6 +40,7 @@ import org.opennms.netmgt.flows.api.FlowException;
 import org.opennms.netmgt.flows.api.FlowRepository;
 import org.opennms.netmgt.flows.api.FlowSource;
 import org.opennms.netmgt.flows.api.NF5Packet;
+import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
 import org.opennms.netmgt.flows.elastic.template.IndexSettings;
 
@@ -72,6 +74,16 @@ public class InitializingFlowRepository implements FlowRepository {
     public void persistNetFlow5Packets(Collection<? extends NF5Packet> packets, FlowSource source) throws FlowException {
         ensureInitialized();
         delegate.persistNetFlow5Packets(packets, source);
+    }
+
+    @Override
+    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(long start, long end) {
+        return delegate.getExportersWithFlows(start, end);
+    }
+
+    @Override
+    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(NodeCriteria node, long start, long end) {
+        return delegate.getSnmpInterfaceIdsWithFlows(node, start, end);
     }
 
     @Override

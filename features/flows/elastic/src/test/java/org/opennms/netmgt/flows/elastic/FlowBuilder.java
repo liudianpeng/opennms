@@ -32,9 +32,28 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.opennms.netmgt.flows.api.NodeCriteria;
+
 public class FlowBuilder {
 
     private final List<FlowDocument> flows = new ArrayList<>();
+
+    private NodeDocument exporterNode;
+    private Integer snmpInterfaceId;
+
+    public FlowBuilder withExporter(String fs, String fid) {
+        exporterNode = new NodeDocument();
+        exporterNode.setForeignSource(fs);
+        exporterNode.setForeignId(fid);
+        exporterNode.setNodeCriteria(String.format("%s:%s", fs, fid));
+        return this;
+    }
+
+
+    public FlowBuilder withSnmpInterfaceId(Integer snmpInterfaceId) {
+        this.snmpInterfaceId = snmpInterfaceId;
+        return this;
+    }
 
     public FlowBuilder withFlow(Date date, String sourceIp, int sourcePort, String destIp, int destPort, long numBytes) {
         final FlowDocument flow = new FlowDocument();
@@ -45,6 +64,11 @@ public class FlowBuilder {
         flow.setDstPort(destPort);
         flow.setBytes(numBytes);
         flow.setProtocol(6); // TCP
+        if (exporterNode !=  null) {
+            flow.setNodeExporter(exporterNode);
+        }
+        flow.setInputSnmp(snmpInterfaceId);
+        flow.setOutputSnmp(snmpInterfaceId);
         flows.add(flow);
         return this;
     }
@@ -52,4 +76,5 @@ public class FlowBuilder {
     public List<FlowDocument> build() {
         return flows;
     }
+
 }

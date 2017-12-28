@@ -47,6 +47,7 @@ import org.opennms.netmgt.flows.api.FlowException;
 import org.opennms.netmgt.flows.api.FlowRepository;
 import org.opennms.netmgt.flows.api.FlowSource;
 import org.opennms.netmgt.flows.api.NF5Packet;
+import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
 import org.opennms.plugins.elasticsearch.rest.BulkResultWrapper;
 import org.opennms.plugins.elasticsearch.rest.FailedItem;
@@ -57,8 +58,8 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 
 import io.searchbox.action.Action;
@@ -167,6 +168,36 @@ public class ElasticFlowRepository implements FlowRepository {
 
             flowsPersistedMeter.mark(flowDocuments.size());
         }
+    }
+
+
+    @Override
+    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(long start, long end) {
+        final String query = searchQueryProvider.getUniqueNodeExporters(start, end, 100);
+        return searchAsync(query).thenApply(res -> res.getAggregations().getTermsAggregation("criterias")
+                .getBuckets()
+                .stream()
+                .map(e -> new NodeCriteria(e.getKey()))
+                .collect(Collectors.toSet()));
+    }
+
+    @Override
+    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(NodeCriteria node, long start, long end) {
+        final String query = searchQueryProvider.getUniqueSnmpInterfaces(node, start, end, 100);
+        return searchAsync(query).thenApply(res -> {
+            final Set<Integer> interfaces = Sets.newHashSet();
+            res.getAggregations().getTermsAggregation("input_snmp").getBuckets()
+                    .stream()
+                    .map(TermsAggregation.Entry::getKey)
+                    .map(Integer::valueOf)
+                    .forEach(interfaces::add);
+            res.getAggregations().getTermsAggregation("output_snmp").getBuckets()
+                    .stream()
+                    .map(TermsAggregation.Entry::getKey)
+                    .map(Integer::valueOf)
+                    .forEach(interfaces::add);
+            return interfaces;
+        });
     }
 
     @Override
@@ -310,7 +341,11 @@ public class ElasticFlowRepository implements FlowRepository {
 
             @Override
             public void completed(SearchResult result) {
-                future.complete(result);
+                if (!result.isSucceeded()) {
+                    future.completeExceptionally(new Exception(result.getErrorMessage()));
+                } else {
+                    future.complete(result);
+                }
             }
 
             @Override

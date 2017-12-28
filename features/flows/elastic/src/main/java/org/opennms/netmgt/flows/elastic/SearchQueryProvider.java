@@ -34,6 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import org.opennms.netmgt.flows.api.NodeCriteria;
+
 import com.google.common.collect.ImmutableMap;
 
 import freemarker.template.Configuration;
@@ -65,6 +67,23 @@ public class SearchQueryProvider {
         return render("flow_count.ftl", ImmutableMap.builder()
                 .put("start", start)
                 .put("end", end)
+                .build());
+    }
+
+    public String getUniqueNodeExporters(long start, long end, long size) {
+        return render("unique_node_exporters.ftl", ImmutableMap.builder()
+                .put("start", start)
+                .put("end", end)
+                .put("size", size)
+                .build());
+    }
+
+    public String getUniqueSnmpInterfaces(NodeCriteria nodeCriteria, long start, long end, long size) {
+        return render("unique_snmp_interfaces.ftl", ImmutableMap.builder()
+                .put("nodeCriteria", nodeCriteria.getCriteria())
+                .put("start", start)
+                .put("end", end)
+                .put("size", size)
                 .build());
     }
 

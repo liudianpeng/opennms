@@ -42,6 +42,9 @@ public class NodeDocument {
     @SerializedName("node_id")
     private Integer nodeId;
 
+    @SerializedName("node_criteria")
+    private String nodeCriteria;
+
     @SerializedName("categories")
     private List<String> categories;
 
@@ -67,6 +70,14 @@ public class NodeDocument {
 
     public void setNodeId(Integer nodeId) {
         this.nodeId = nodeId;
+    }
+
+    public String getNodeCriteria() {
+        return nodeCriteria;
+    }
+
+    public void setNodeCriteria(String nodeCriteria) {
+        this.nodeCriteria = nodeCriteria;
     }
 
     public List<String> getCategories() {

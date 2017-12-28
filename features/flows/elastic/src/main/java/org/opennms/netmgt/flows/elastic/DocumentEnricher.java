@@ -148,6 +148,12 @@ public class DocumentEnricher {
                 nodeInfo.setForeignSource(onmsNode.getForeignSource());
                 nodeInfo.setForeignId(onmsNode.getForeignId());
                 nodeInfo.setNodeId(nodeId.get());
+                if (nodeInfo.getForeignSource() != null && nodeInfo.getForeignId() != null) {
+                    nodeInfo.setNodeCriteria(String.format("%s:%s",
+                            nodeInfo.getForeignSource(), nodeInfo.getForeignId()));
+                } else {
+                    nodeInfo.setNodeCriteria(Integer.toString(nodeInfo.getNodeId()));
+                }
                 nodeInfo.setCategories(onmsNode.getCategories().stream().map(OnmsCategory::getName).collect(Collectors.toList()));
 
                 return Optional.of(nodeInfo);

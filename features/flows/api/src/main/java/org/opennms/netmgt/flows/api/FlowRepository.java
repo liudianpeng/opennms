@@ -30,6 +30,7 @@ package org.opennms.netmgt.flows.api;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.common.collect.Table;
@@ -37,6 +38,10 @@ import com.google.common.collect.Table;
 public interface FlowRepository {
 
     void persistNetFlow5Packets(Collection<? extends NF5Packet> packets, FlowSource source) throws FlowException;
+
+    CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(long start, long end);
+
+    CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(NodeCriteria node, long start, long end);
 
     CompletableFuture<Long> getFlowCount(long start, long end);
 

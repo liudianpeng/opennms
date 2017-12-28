@@ -37,6 +37,7 @@ import static org.hamcrest.Matchers.hasSize;
 import java.net.MalformedURLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +51,7 @@ import org.opennms.netmgt.flows.api.ConversationKey;
 import org.opennms.netmgt.flows.api.Directional;
 import org.opennms.netmgt.flows.api.FlowException;
 import org.opennms.netmgt.flows.api.FlowSource;
+import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
 import org.opennms.netmgt.flows.elastic.template.IndexSettings;
 import org.opennms.plugins.elasticsearch.rest.RestClientFactory;
@@ -99,6 +101,18 @@ public class FlowQueryIT {
 
         // Load the default set of flows
         loadDefaultFlows();
+    }
+
+    @Test
+    public void canRetrieveNodesAndSnmpInterfaces() throws ExecutionException, InterruptedException {
+        final Set<NodeCriteria> nodeCriterias = flowRepository.getExportersWithFlows(0, 100).get();
+        assertThat(nodeCriterias, hasSize(2));
+        assertThat(nodeCriterias, containsInAnyOrder(new NodeCriteria("SomeFs", "SomeFid"),
+                new NodeCriteria("SomeFs", "AnotherFid")));
+
+        final Set<Integer> snmpInterfaceIds = flowRepository.getSnmpInterfaceIdsWithFlows(new NodeCriteria("SomeFs", "SomeFid"), 0, 100).get();
+        assertThat(snmpInterfaceIds, hasSize(1));
+        assertThat(snmpInterfaceIds, containsInAnyOrder(1));
     }
 
     @Test
@@ -155,12 +169,17 @@ public class FlowQueryIT {
 
     private void loadDefaultFlows() throws FlowException {
         final List<FlowDocument> flows = new FlowBuilder()
+                .withExporter("SomeFs", "SomeFid")
+                .withSnmpInterfaceId(1)
                 // 192.168.1.100:43444 <-> 10.1.1.11:80
                 .withFlow(new Date(0), "192.168.1.100", 43444, "10.1.1.11", 80, 10)
                 .withFlow(new Date(0), "10.1.1.11", 80, "192.168.1.100", 43444, 100)
                 // 192.168.1.100:43445 <-> 10.1.1.12:443
                 .withFlow(new Date(10), "192.168.1.100", 43445, "10.1.1.12", 443, 100)
                 .withFlow(new Date(10), "10.1.1.12", 443, "192.168.1.100", 43445, 1000)
+                // Observe the remaining flows on a different exporter/interface
+                .withExporter("SomeFs", "AnotherFid")
+                .withSnmpInterfaceId(2)
                 // 192.168.1.101:43442 <-> 10.1.1.12:443
                 .withFlow(new Date(10), "192.168.1.101", 43442, "10.1.1.12", 443, 110)
                 .withFlow(new Date(10), "10.1.1.12", 443, "192.168.1.101", 43442, 1100)
