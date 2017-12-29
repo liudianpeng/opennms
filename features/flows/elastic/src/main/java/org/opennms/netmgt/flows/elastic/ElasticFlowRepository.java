@@ -173,8 +173,8 @@ public class ElasticFlowRepository implements FlowRepository {
 
 
     @Override
-    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(List<Filter> filters) {
-        final String query = searchQueryProvider.getUniqueNodeExporters(100, filters);
+    public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(int limit, List<Filter> filters) {
+        final String query = searchQueryProvider.getUniqueNodeExporters(limit, filters);
         return searchAsync(query).thenApply(res -> res.getAggregations().getTermsAggregation("criterias")
                 .getBuckets()
                 .stream()
@@ -183,8 +183,8 @@ public class ElasticFlowRepository implements FlowRepository {
     }
 
     @Override
-    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(List<Filter> filters) {
-        final String query = searchQueryProvider.getUniqueSnmpInterfaces(100, filters);
+    public CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(int limit, List<Filter> filters) {
+        final String query = searchQueryProvider.getUniqueSnmpInterfaces(limit, filters);
         return searchAsync(query).thenApply(res -> {
             final Set<Integer> interfaces = Sets.newHashSet();
             res.getAggregations().getTermsAggregation("input_snmp").getBuckets()

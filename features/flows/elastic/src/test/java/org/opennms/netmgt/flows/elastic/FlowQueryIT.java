@@ -110,12 +110,12 @@ public class FlowQueryIT {
 
     @Test
     public void canRetrieveNodesAndSnmpInterfaces() throws ExecutionException, InterruptedException {
-        final Set<NodeCriteria> nodeCriterias = flowRepository.getExportersWithFlows(getFilters()).get();
+        final Set<NodeCriteria> nodeCriterias = flowRepository.getExportersWithFlows(5, getFilters()).get();
         assertThat(nodeCriterias, hasSize(2));
         assertThat(nodeCriterias, containsInAnyOrder(new NodeCriteria("SomeFs", "SomeFid"),
                 new NodeCriteria("SomeFs", "AnotherFid")));
 
-        final Set<Integer> snmpInterfaceIds = flowRepository.getSnmpInterfaceIdsWithFlows(getFilters(
+        final Set<Integer> snmpInterfaceIds = flowRepository.getSnmpInterfaceIdsWithFlows(5, getFilters(
                 new ExporterNodeFilter(new NodeCriteria("SomeFs", "SomeFid")))).get();
         assertThat(snmpInterfaceIds, hasSize(1));
         assertThat(snmpInterfaceIds, containsInAnyOrder(1));

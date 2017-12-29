@@ -28,11 +28,20 @@
 
 package org.opennms.netmgt.flows.filter.api;
 
-public interface FilterVisitor<T> {
+public class SnmpInterfaceIdFilter implements Filter {
 
-    T visit(ExporterNodeFilter exporterNodeFilter);
+    private final int snmpInterfaceId;
 
-    T visit(TimeRangeFilter timeRangeFilter);
+    public SnmpInterfaceIdFilter(int snmpInterfaceId) {
+        this.snmpInterfaceId = snmpInterfaceId;
+    }
 
-    T visit(SnmpInterfaceIdFilter snmpInterfaceIdFilter);
+    public int getSnmpInterfaceId() {
+        return snmpInterfaceId;
+    }
+
+    @Override
+    public <T> T visit(FilterVisitor<T> visitor) {
+        return visitor.visit(this);
+    }
 }

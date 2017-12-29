@@ -28,15 +28,20 @@
 
 package org.opennms.netmgt.flows.rest;
 
+import java.util.List;
+
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 import org.opennms.netmgt.flows.rest.model.FlowSeriesResponse;
 import org.opennms.netmgt.flows.rest.model.FlowSummaryResponse;
+import org.opennms.netmgt.flows.rest.model.NodeSummary;
+import org.opennms.netmgt.flows.rest.model.SnmpInterface;
 
 @Path("flows")
 public interface FlowRestService {
@@ -54,13 +59,34 @@ public interface FlowRestService {
     );
 
     @GET
+    @Path("exporters")
+    @Produces(MediaType.APPLICATION_JSON)
+    List<NodeSummary> getFlowExporters(
+            @DefaultValue(DEFAULT_START_MS) @QueryParam("start") final long start,
+            @DefaultValue(DEFAULT_END_MS) @QueryParam("end") final long end,
+            @DefaultValue("0") final int limit
+    );
+
+    @GET
+    @Path("exporters/{nodeCriteria}/interfaces")
+    @Produces(MediaType.APPLICATION_JSON)
+    List<SnmpInterface> getFlowExporterInterfaces(
+            @DefaultValue(DEFAULT_START_MS) @QueryParam("start") final long start,
+            @DefaultValue(DEFAULT_END_MS) @QueryParam("end") final long end,
+            @PathParam("nodeCriteria") String nodeCriteria,
+            @DefaultValue("0") final int limit
+    );
+
+    @GET
     @Path("applications/series")
     @Produces(MediaType.APPLICATION_JSON)
     FlowSeriesResponse getTopNApplicationSeries(
             @DefaultValue(DEFAULT_START_MS) @QueryParam("start") final long start,
             @DefaultValue(DEFAULT_END_MS) @QueryParam("end") final long end,
             @DefaultValue(DEFAULT_STEP_MS) @QueryParam("step") final long step,
-            @DefaultValue(DEFAULT_TOP_N) @QueryParam("N") final int N
+            @DefaultValue(DEFAULT_TOP_N) @QueryParam("N") final int N,
+            @QueryParam("exporterNode") final String exporterNodeCriteria,
+            @QueryParam("snmpInterfaceId") final Integer snmpInterfaceId
     );
 
     @GET

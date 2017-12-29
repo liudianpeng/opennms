@@ -26,13 +26,53 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.netmgt.flows.filter.api;
+package org.opennms.netmgt.flows.rest.model;
 
-public interface FilterVisitor<T> {
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
 
-    T visit(ExporterNodeFilter exporterNodeFilter);
+@XmlAccessorType(XmlAccessType.NONE)
+public class SnmpInterface {
 
-    T visit(TimeRangeFilter timeRangeFilter);
+    @XmlAttribute(name="ifIndex")
+    private Integer ifIndex;
 
-    T visit(SnmpInterfaceIdFilter snmpInterfaceIdFilter);
+    @XmlAttribute(name="ifName")
+    private String ifName;
+
+    @XmlAttribute(name="ifDescr")
+    private String ifDescr;
+
+    public SnmpInterface() { }
+
+    public SnmpInterface(Integer ifIndex, String ifName, String ifAlias, String ifDescr) {
+        this.ifIndex = ifIndex;
+        this.ifName = ifName;
+        this.ifDescr = ifDescr;
+    }
+
+    public Integer getIfIndex() {
+        return ifIndex;
+    }
+
+    public void setIfIndex(Integer ifIndex) {
+        this.ifIndex = ifIndex;
+    }
+
+    public String getIfName() {
+        return ifName;
+    }
+
+    public void setIfName(String ifName) {
+        this.ifName = ifName;
+    }
+
+    public String getIfDescr() {
+        return ifDescr;
+    }
+
+    public void setIfDescr(String ifDescr) {
+        this.ifDescr = ifDescr;
+    }
 }

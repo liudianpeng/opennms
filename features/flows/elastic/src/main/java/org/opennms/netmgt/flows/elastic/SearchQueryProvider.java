@@ -40,6 +40,7 @@ import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.filter.api.ExporterNodeFilter;
 import org.opennms.netmgt.flows.filter.api.Filter;
 import org.opennms.netmgt.flows.filter.api.FilterVisitor;
+import org.opennms.netmgt.flows.filter.api.SnmpInterfaceIdFilter;
 import org.opennms.netmgt.flows.filter.api.TimeRangeFilter;
 
 import com.google.common.collect.ImmutableMap;
@@ -143,6 +144,13 @@ public class SearchQueryProvider implements FilterVisitor<String> {
         return render("filter_time_range.ftl", ImmutableMap.builder()
                 .put("start", timeRangeFilter.getStart())
                 .put("end", timeRangeFilter.getEnd())
+                .build());
+    }
+
+    @Override
+    public String visit(SnmpInterfaceIdFilter snmpInterfaceIdFilter) {
+        return render("filter_snmp_interface.ftl", ImmutableMap.builder()
+                .put("snmpInterfaceId", snmpInterfaceIdFilter.getSnmpInterfaceId())
                 .build());
     }
 }
