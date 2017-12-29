@@ -40,6 +40,7 @@ import javax.ws.rs.core.MediaType;
 
 import org.opennms.netmgt.flows.rest.model.FlowSeriesResponse;
 import org.opennms.netmgt.flows.rest.model.FlowSummaryResponse;
+import org.opennms.netmgt.flows.rest.model.NodeDetails;
 import org.opennms.netmgt.flows.rest.model.NodeSummary;
 import org.opennms.netmgt.flows.rest.model.SnmpInterface;
 
@@ -50,6 +51,7 @@ public interface FlowRestService {
     String DEFAULT_END_MS = "0"; // Resolves to "now" when queried
     String DEFAULT_STEP_MS = "300000"; // 5 minutes
     String DEFAULT_TOP_N = "10";
+    String DEFAULT_LIMIT = "10";
 
     @GET
     @Path("count")
@@ -64,17 +66,17 @@ public interface FlowRestService {
     List<NodeSummary> getFlowExporters(
             @DefaultValue(DEFAULT_START_MS) @QueryParam("start") final long start,
             @DefaultValue(DEFAULT_END_MS) @QueryParam("end") final long end,
-            @DefaultValue("0") final int limit
+            @DefaultValue(DEFAULT_LIMIT) @QueryParam("limit") final int limit
     );
 
     @GET
-    @Path("exporters/{nodeCriteria}/interfaces")
+    @Path("exporters/{nodeCriteria}")
     @Produces(MediaType.APPLICATION_JSON)
-    List<SnmpInterface> getFlowExporterInterfaces(
+    NodeDetails getFlowExporterInterfaces(
             @DefaultValue(DEFAULT_START_MS) @QueryParam("start") final long start,
             @DefaultValue(DEFAULT_END_MS) @QueryParam("end") final long end,
-            @PathParam("nodeCriteria") String nodeCriteria,
-            @DefaultValue("0") final int limit
+            @DefaultValue(DEFAULT_LIMIT) @QueryParam("limit") final int limit,
+            @PathParam("nodeCriteria") String nodeCriteria
     );
 
     @GET

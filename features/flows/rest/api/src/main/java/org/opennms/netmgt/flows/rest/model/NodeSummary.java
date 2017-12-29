@@ -47,15 +47,27 @@ public class NodeSummary {
     @XmlAttribute(name="foreign-source")
     private String foreignSource;
 
+    @XmlAttribute(name="criteria")
+    private String criteria;
+
+    @XmlAttribute(name="label")
+    private String label;
+
     @XmlElement(name="category")
     private List<String> categories;
 
     public NodeSummary() { }
 
-    public NodeSummary(Integer id, String foreignId, String foreignSource, List<String> categories) {
+    public NodeSummary(Integer id, String foreignId, String foreignSource, String label, List<String> categories) {
         this.id = id;
         this.foreignId = foreignId;
         this.foreignSource = foreignSource;
+        if (foreignId != null && foreignSource != null) {
+            this.criteria = String.format("%s:%s", foreignSource, foreignId);
+        } else {
+            this.criteria = Integer.toString(id);
+        }
+        this.label = label;
         this.categories = categories;
     }
 
@@ -81,6 +93,22 @@ public class NodeSummary {
 
     public void setForeignSource(String foreignSource) {
         this.foreignSource = foreignSource;
+    }
+
+    public String getCriteria() {
+        return criteria;
+    }
+
+    public void setCriteria(String criteria) {
+        this.criteria = criteria;
+    }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
     }
 
     public List<String> getCategories() {

@@ -28,68 +28,30 @@
 
 package org.opennms.netmgt.flows.rest.model;
 
+import java.util.List;
+
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
 
 @XmlAccessorType(XmlAccessType.NONE)
-public class SnmpInterface {
+public class NodeDetails extends NodeSummary {
 
-    @XmlAttribute(name="index")
-    private Integer ifIndex;
+    @XmlElement(name="interface")
+    private List<SnmpInterface> interfaces;
 
-    @XmlAttribute(name="name")
-    private String ifName;
+    public NodeDetails() { }
 
-    @XmlAttribute(name="descr")
-    private String ifDescr;
-
-    // interfaceSnmp[igb0_vlan3-0008a20afbe8]
-    @XmlAttribute(name="resource-id")
-    private String resourceId;
-
-    public SnmpInterface() { }
-
-    public SnmpInterface(Integer ifIndex) {
-        this.ifIndex = ifIndex;
+    public NodeDetails(int id, List<SnmpInterface> interfaces) {
+        setId(id);
+        this.interfaces = interfaces;
     }
 
-    public SnmpInterface(Integer ifIndex, String ifName, String ifAlias, String ifDescr) {
-        this.ifIndex = ifIndex;
-        this.ifName = ifName;
-        this.ifDescr = ifDescr;
+    public List<SnmpInterface> getInterfaces() {
+        return interfaces;
     }
 
-    public Integer getIfIndex() {
-        return ifIndex;
-    }
-
-    public void setIfIndex(Integer ifIndex) {
-        this.ifIndex = ifIndex;
-    }
-
-    public String getIfName() {
-        return ifName;
-    }
-
-    public void setIfName(String ifName) {
-        this.ifName = ifName;
-    }
-
-    public String getIfDescr() {
-        return ifDescr;
-    }
-
-    public void setIfDescr(String ifDescr) {
-        this.ifDescr = ifDescr;
-    }
-
-    public String getResourceId() {
-        return resourceId;
-    }
-
-    public void setResourceId(String resourceId) {
-        this.resourceId = resourceId;
+    public void setInterfaces(List<SnmpInterface> interfaces) {
+        this.interfaces = interfaces;
     }
 }
-

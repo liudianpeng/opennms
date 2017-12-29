@@ -12,13 +12,15 @@
     <reference id="flowRepository" interface="org.opennms.netmgt.flows.api.FlowRepository" availability="mandatory"/>
     <reference id="nodeDao" interface="org.opennms.netmgt.dao.api.NodeDao" availability="mandatory"/>
     <reference id="snmpInterfaceDao" interface="org.opennms.netmgt.dao.api.SnmpInterfaceDao" availability="mandatory"/>
-    <reference id="transactionTemplate" interface="org.springframework.transaction.support.TransactionTemplate" availability="mandatory"/>
+    <reference id="transactionOperations" interface="org.springframework.transaction.support.TransactionOperations" availability="mandatory"/>
+    <reference id="resourceDao" interface="org.opennms.netmgt.dao.api.ResourceDao" availability="mandatory"/>
 
     <bean id="flowRestService" class="org.opennms.netmgt.flows.rest.internal.FlowRestServiceImpl">
         <argument ref="flowRepository" />
         <argument ref="nodeDao" />
         <argument ref="snmpInterfaceDao" />
-        <argument ref="transactionTemplate" />
+        <argument ref="transactionOperations" />
+        <argument ref="resourceDao" />
     </bean>
     <service interface="org.opennms.netmgt.flows.rest.FlowRestService" ref="flowRestService" >
         <service-properties>

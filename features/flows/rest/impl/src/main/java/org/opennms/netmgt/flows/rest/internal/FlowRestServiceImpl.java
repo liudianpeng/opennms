@@ -30,7 +30,6 @@ package org.opennms.netmgt.flows.rest.internal;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedList;
@@ -44,6 +43,7 @@ import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 
 import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.dao.api.SnmpInterfaceDao;
 import org.opennms.netmgt.flows.api.ConversationKey;
 import org.opennms.netmgt.flows.api.FlowRepository;
@@ -55,28 +55,37 @@ import org.opennms.netmgt.flows.filter.api.TimeRangeFilter;
 import org.opennms.netmgt.flows.rest.FlowRestService;
 import org.opennms.netmgt.flows.rest.model.FlowSeriesResponse;
 import org.opennms.netmgt.flows.rest.model.FlowSummaryResponse;
+import org.opennms.netmgt.flows.rest.model.NodeDetails;
 import org.opennms.netmgt.flows.rest.model.NodeSummary;
 import org.opennms.netmgt.flows.rest.model.SnmpInterface;
 import org.opennms.netmgt.model.OnmsCategory;
+import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsNode;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.opennms.netmgt.model.OnmsResource;
+import org.opennms.netmgt.model.OnmsSnmpInterface;
+import org.springframework.transaction.support.TransactionOperations;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
+
+// https://minion-dev.jessewhite.ca:8443/opennms/rest/flows/applications/series?exporterNode=Minions:1146160051&snmpInterfaceId=1
 
 public class FlowRestServiceImpl implements FlowRestService {
 
     private final FlowRepository flowRepository;
     private final NodeDao nodeDao;
     private final SnmpInterfaceDao snmpInterfaceDao;
-    private final TransactionTemplate transactionTemplate;
+    private final TransactionOperations transactionOperations;
+    private final ResourceDao resourceDao;
 
     public FlowRestServiceImpl(FlowRepository flowRepository, NodeDao nodeDao,
-                               SnmpInterfaceDao snmpInterfaceDao, TransactionTemplate transactionTemplate) {
+                               SnmpInterfaceDao snmpInterfaceDao, TransactionOperations transactionOperations,
+                               ResourceDao resourceDao) {
         this.flowRepository = Objects.requireNonNull(flowRepository);
         this.nodeDao = Objects.requireNonNull(nodeDao);
         this.snmpInterfaceDao = Objects.requireNonNull(snmpInterfaceDao);
-        this.transactionTemplate = Objects.requireNonNull(transactionTemplate);
+        this.transactionOperations = Objects.requireNonNull(transactionOperations);
+        this.resourceDao = Objects.requireNonNull(resourceDao);
     }
 
     private List<Filter> getTimeRangeFilter(long start, long end) {
@@ -97,35 +106,81 @@ public class FlowRestServiceImpl implements FlowRestService {
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
         final List<Filter> filters = getTimeRangeFilter(effectiveStart, effectiveEnd);
         final Set<NodeCriteria> criterias = waitForFuture(flowRepository.getExportersWithFlows(limit, filters));
-        return transactionTemplate.execute(status -> criterias.stream()
+        return transactionOperations.execute(status -> criterias.stream()
                 .map(c -> nodeDao.get(c.getCriteria()))
                 .filter(Objects::nonNull)
                 .map(n -> new NodeSummary(n.getId(),
-                        n.getForeignId(), n.getForeignSource(),
+                        n.getForeignId(), n.getForeignSource(), n.getLabel(),
                         n.getCategories().stream().map(OnmsCategory::getName).collect(Collectors.toList())))
                 .sorted(Comparator.comparingInt(NodeSummary::getId))
                 .collect(Collectors.toList()));
     }
 
     @Override
-    public List<SnmpInterface> getFlowExporterInterfaces(long start, long end, String nodeCriteria, int limit) {
+    public NodeDetails getFlowExporterInterfaces(long start, long end, int limit, String nodeCriteria) {
         final long effectiveEnd = getEffectiveEnd(end);
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
         final List<Filter> filters = getTimeRangeFilter(effectiveStart, effectiveEnd);
         filters.add(new ExporterNodeFilter(new NodeCriteria(nodeCriteria)));
         final Set<Integer> snmpInterfaceIds = waitForFuture(flowRepository.getSnmpInterfaceIdsWithFlows(limit, filters));
-        return transactionTemplate.execute(status -> {
+        final NodeDetails nodeDetails = transactionOperations.execute(status -> {
             final OnmsNode node = nodeDao.get(nodeCriteria);
             if (node == null) {
-                return Collections.emptyList();
+                return null;
             }
-            return snmpInterfaceIds.stream()
-                    .map(id -> snmpInterfaceDao.findByNodeIdAndIfIndex(node.getId(), id))
-                    .filter(Objects::nonNull)
-                    .map(s -> new SnmpInterface(s.getIfIndex(), s.getIfName(), s.getIfAlias(), s.getIfDescr()))
-                    .sorted(Comparator.comparingInt(SnmpInterface::getIfIndex))
-                    .collect(Collectors.toList());
+            final List<SnmpInterface> interfaces = Lists.newArrayList();
+            for (Integer snmpInterfaceId : snmpInterfaceIds) {
+                final SnmpInterface snmpInterface = new SnmpInterface(snmpInterfaceId);
+                final OnmsSnmpInterface snmpIf = snmpInterfaceDao.findByNodeIdAndIfIndex(node.getId(), snmpInterfaceId);
+                if (snmpIf != null) {
+                    snmpInterface.setIfName(snmpIf.getIfName());
+                    snmpInterface.setIfDescr(snmpIf.getIfDescr());
+                }
+
+                // !!! HACK !!!
+                Integer idOfFirstIpIf = null;
+                Set<OnmsIpInterface> ipInterfaces = snmpIf.getIpInterfaces();
+                if (ipInterfaces.size() > 0) {
+                    idOfFirstIpIf = ipInterfaces.iterator().next().getId();
+                }
+
+                OnmsResource snmpIfResource = null;
+                if (idOfFirstIpIf != null) {
+                    OnmsResource nodeResource = resourceDao.getResourceForNode(node);
+                    for (OnmsResource childResource : nodeResource.getChildResources()) {
+                        final String link = childResource.getLink();
+                        if (link == null) {
+                            continue;
+                        }
+                        final String token = "ipinterfaceid=";
+                        final int idx = link.lastIndexOf(token);
+                        if (idx < 0) {
+                            continue;
+                        }
+                        final String id = link.substring(idx + token.length());
+                        if (Integer.valueOf(id).equals(idOfFirstIpIf)) {
+                            // We've got a match
+                            snmpIfResource = childResource;
+                            break;
+                        }
+                    }
+                }
+
+                if (snmpIfResource != null) {
+                    snmpInterface.setResourceId(snmpIfResource.getName());
+                } else {
+                    snmpInterface.setResourceId(Integer.toString(snmpIf.getId()));
+                }
+
+                interfaces.add(snmpInterface);
+            }
+            return new NodeDetails(node.getId(), interfaces);
         });
+        if (nodeDetails == null) {
+            // FIXME: Review
+            throw new WebApplicationException("No such node " + nodeCriteria);
+        }
+        return nodeDetails;
     }
 
     @Override
@@ -141,8 +196,8 @@ public class FlowRestServiceImpl implements FlowRestService {
             filters.add(new SnmpInterfaceIdFilter(snmpInterfaceId));
         }
 
-        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getTopNApplicationsSeries(N, step,
-                getTimeRangeFilter(effectiveStart, effectiveEnd)).thenApply(res -> {
+        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getTopNApplicationsSeries(N, step, filters)
+                .thenApply(res -> {
             final FlowSeriesResponse response = new FlowSeriesResponse();
             response.setStart(effectiveStart);
             response.setEnd(effectiveEnd);
