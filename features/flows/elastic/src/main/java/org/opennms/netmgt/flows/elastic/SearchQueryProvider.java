@@ -98,6 +98,14 @@ public class SearchQueryProvider implements FilterVisitor<String> {
                 .build());
     }
 
+    public String getSeriesQuery(long step, String groupByTerm, List<Filter> filters) {
+        return render("series.ftl", ImmutableMap.builder()
+                .put("filters", getFilterQueries(filters))
+                .put("step", step)
+                .put("groupByTerm", groupByTerm)
+                .build());
+    }
+
     public String getSeriesFromTopNQuery(List<String> topN, long step, String groupByTerm, List<Filter> filters) {
         return render("top_n_series.ftl", ImmutableMap.builder()
                 .put("filters", getFilterQueries(filters))

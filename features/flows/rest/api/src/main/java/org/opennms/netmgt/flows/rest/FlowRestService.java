@@ -61,6 +61,17 @@ public interface FlowRestService {
     );
 
     @GET
+    @Path("series")
+    @Produces(MediaType.APPLICATION_JSON)
+    FlowSeriesResponse getSeries(
+            @DefaultValue(DEFAULT_START_MS) @QueryParam("start") final long start,
+            @DefaultValue(DEFAULT_END_MS) @QueryParam("end") final long end,
+            @DefaultValue(DEFAULT_STEP_MS) @QueryParam("step") final long step,
+            @QueryParam("exporterNode") final String exporterNodeCriteria,
+            @QueryParam("snmpInterfaceId") final Integer snmpInterfaceId
+    );
+
+    @GET
     @Path("exporters")
     @Produces(MediaType.APPLICATION_JSON)
     List<NodeSummary> getFlowExporters(

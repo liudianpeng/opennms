@@ -40,7 +40,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.MediaType;
 
 import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.dao.api.ResourceDao;
@@ -98,6 +104,32 @@ public class FlowRestServiceImpl implements FlowRestService {
         final long effectiveStart = getEffectiveStart(start, effectiveEnd);
 
         return waitForFuture(flowRepository.getFlowCount(getTimeRangeFilter(effectiveStart, effectiveEnd)));
+    }
+
+    @Override
+    public FlowSeriesResponse getSeries(long start, long end, long step, String exporterNodeCriteria, Integer snmpInterfaceId) {
+        final long effectiveEnd = getEffectiveEnd(end);
+        final long effectiveStart = getEffectiveStart(start, effectiveEnd);
+        final List<Filter> filters = getTimeRangeFilter(effectiveStart, effectiveEnd);
+        if (exporterNodeCriteria != null) {
+            filters.add(new ExporterNodeFilter(new NodeCriteria(exporterNodeCriteria)));
+        }
+        if (snmpInterfaceId != null) {
+            filters.add(new SnmpInterfaceIdFilter(snmpInterfaceId));
+        }
+
+        final CompletableFuture<FlowSeriesResponse> future = flowRepository.getSeries(step, filters)
+                .thenApply(res -> {
+                    final FlowSeriesResponse response = new FlowSeriesResponse();
+                    response.setStart(effectiveStart);
+                    response.setEnd(effectiveEnd);
+                    response.setLabels(res.rowKeySet().stream()
+                            .map((d) -> String.format("%s (%s)", d.getValue(), d.isSource() ? "In" : "Out"))
+                            .collect(Collectors.toList()));
+                    populateResponseFromTable(res, response);
+                    return response;
+                });
+        return waitForFuture(future);
     }
 
     @Override
@@ -299,8 +331,8 @@ public class FlowRestServiceImpl implements FlowRestService {
             final List<Double> column = new ArrayList<>(timestamps.size());
             for (Long ts : timestamps) {
                 Double val = table.get(rowKey, ts);
-                if (val == null) {
-                    val = Double.NaN;
+                if (val == null || Double.isNaN(val)) {
+                    val = 0d;
                 }
                 column.add(val);
             }

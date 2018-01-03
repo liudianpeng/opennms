@@ -41,6 +41,8 @@ public interface FlowRepository {
 
     void persistNetFlow5Packets(Collection<? extends NF5Packet> packets, FlowSource source) throws FlowException;
 
+    CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters);
+
     CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(int limit, List<Filter> filters);
 
     CompletableFuture<Set<Integer>> getSnmpInterfaceIdsWithFlows(int limit, List<Filter> filters);

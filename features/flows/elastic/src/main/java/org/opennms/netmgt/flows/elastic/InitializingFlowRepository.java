@@ -78,6 +78,11 @@ public class InitializingFlowRepository implements FlowRepository {
     }
 
     @Override
+    public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters) {
+        return delegate.getSeries(step, filters);
+    }
+
+    @Override
     public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(int limit, List<Filter> filters) {
         return delegate.getExportersWithFlows(limit, filters);
     }

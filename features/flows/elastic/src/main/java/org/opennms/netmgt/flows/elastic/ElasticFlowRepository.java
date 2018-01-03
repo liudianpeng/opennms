@@ -171,6 +171,39 @@ public class ElasticFlowRepository implements FlowRepository {
         }
     }
 
+    @Override
+    public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters) {
+        final String query = searchQueryProvider.getSeriesQuery(step, "netflow.application", filters);
+        return searchAsync(query).thenApply(res -> {
+            // Build a table using the search results
+            final ImmutableTable.Builder<Directional<String>, Long, Double> results = ImmutableTable.builder();
+            final MetricAggregation aggs = res.getAggregations();
+            final TermsAggregation groupedBy = aggs.getTermsAggregation("grouped_by");
+            for (TermsAggregation.Entry groupedByBucket : groupedBy.getBuckets()) {
+                final DateHistogramAggregation bytesAggs = groupedByBucket.getDateHistogramAggregation("bytes_over_time");
+                for (DateHistogramAggregation.DateHistogram dateHistogram : bytesAggs.getBuckets()) {
+                    final Long time = dateHistogram.getTime();
+                    final TermsAggregation directionAgg = dateHistogram.getTermsAggregation("direction");
+
+                    // Make sure we have values for both directions, since we may only have one bucket returned here
+                    Double bytesWhenInitiator = Double.NaN;
+                    Double bytesWhenNotInitiator = Double.NaN;
+                    for (TermsAggregation.Entry directionBucket : directionAgg.getBuckets()) {
+                        final boolean isInitiator = Boolean.valueOf(directionBucket.getKeyAsString());
+                        final SumAggregation sumAgg = directionBucket.getSumAggregation("total_bytes");
+                        if (isInitiator) {
+                            bytesWhenInitiator = sumAgg.getSum();
+                        } else {
+                            bytesWhenNotInitiator = sumAgg.getSum();
+                        }
+                    }
+                    results.put(new Directional<>(groupedByBucket.getKey(), true), time, bytesWhenInitiator);
+                    results.put(new Directional<>(groupedByBucket.getKey(), false), time, bytesWhenNotInitiator);
+                }
+            }
+            return results.build();
+        });
+    }
 
     @Override
     public CompletableFuture<Set<NodeCriteria>> getExportersWithFlows(int limit, List<Filter> filters) {
