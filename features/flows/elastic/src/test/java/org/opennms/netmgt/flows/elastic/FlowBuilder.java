@@ -40,6 +40,8 @@ public class FlowBuilder {
 
     private NodeDocument exporterNode;
     private Integer snmpInterfaceId;
+    private boolean initiator = false;
+    private String application = null;
 
     public FlowBuilder withExporter(String fs, String fid) {
         exporterNode = new NodeDocument();
@@ -55,9 +57,25 @@ public class FlowBuilder {
         return this;
     }
 
+    public FlowBuilder withInitiator(boolean initiator) {
+        this.initiator = initiator;
+        return this;
+    }
+
+    public FlowBuilder withApplication(String application) {
+        this.application = application;
+        return this;
+    }
+
     public FlowBuilder withFlow(Date date, String sourceIp, int sourcePort, String destIp, int destPort, long numBytes) {
+        return withFlow(date, date, sourceIp, sourcePort, destIp, destPort, numBytes);
+    }
+
+    public FlowBuilder withFlow(Date firstSwitched, Date lastSwitched, String sourceIp, int sourcePort, String destIp, int destPort, long numBytes) {
         final FlowDocument flow = new FlowDocument();
-        flow.setTimestamp(date.getTime());
+        flow.setTimestamp(lastSwitched.getTime());
+        flow.setFirstSwitched(firstSwitched.getTime());
+        flow.setLastSwitched(lastSwitched.getTime());
         flow.setSrcAddr(sourceIp);
         flow.setSrcPort(sourcePort);
         flow.setDstAddr(destIp);
@@ -69,6 +87,8 @@ public class FlowBuilder {
         }
         flow.setInputSnmp(snmpInterfaceId);
         flow.setOutputSnmp(snmpInterfaceId);
+        flow.setInitiator(initiator);
+        flow.setApplication(application);
         flows.add(flow);
         return this;
     }

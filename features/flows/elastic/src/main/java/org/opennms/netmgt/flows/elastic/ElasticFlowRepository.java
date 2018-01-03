@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -50,6 +51,7 @@ import org.opennms.netmgt.flows.api.NF5Packet;
 import org.opennms.netmgt.flows.api.NodeCriteria;
 import org.opennms.netmgt.flows.api.TrafficSummary;
 import org.opennms.netmgt.flows.filter.api.Filter;
+import org.opennms.netmgt.flows.filter.api.TimeRangeFilter;
 import org.opennms.plugins.elasticsearch.rest.BulkResultWrapper;
 import org.opennms.plugins.elasticsearch.rest.FailedItem;
 import org.slf4j.Logger;
@@ -62,19 +64,26 @@ import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import io.searchbox.action.Action;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.client.JestResultHandler;
 import io.searchbox.core.Bulk;
+import io.searchbox.core.ClearScroll;
 import io.searchbox.core.Index;
 import io.searchbox.core.Search;
 import io.searchbox.core.SearchResult;
+import io.searchbox.core.SearchScroll;
 import io.searchbox.core.search.aggregation.DateHistogramAggregation;
 import io.searchbox.core.search.aggregation.MetricAggregation;
 import io.searchbox.core.search.aggregation.SumAggregation;
 import io.searchbox.core.search.aggregation.TermsAggregation;
+import io.searchbox.core.search.sort.Sort;
+import io.searchbox.params.Parameters;
 
 public class ElasticFlowRepository implements FlowRepository {
 
@@ -171,38 +180,63 @@ public class ElasticFlowRepository implements FlowRepository {
         }
     }
 
+    private static class ScrollState {
+        private long size = 10;
+        private String scrollTimeout = "5m";
+        private List<FlowDocument> docs = new ArrayList<>();
+    }
+
+    private CompletableFuture<JestResult> doScroll(JestResult res, ScrollState state) {
+        final String scrollId = res.getJsonObject().getAsJsonPrimitive("_scroll_id").getAsString();
+        final JsonArray hits = res.getJsonObject().getAsJsonObject("hits").getAsJsonArray("hits");
+        for (JsonElement el : hits) {
+            final FlowDocument doc = new FlowDocument();
+            final JsonObject obj = el.getAsJsonObject().getAsJsonObject("_source");
+            doc.setBytes(obj.getAsJsonPrimitive("netflow.bytes").getAsLong());
+            doc.setApplication(obj.getAsJsonPrimitive("netflow.application").getAsString());
+            doc.setFirstSwitched(obj.getAsJsonPrimitive("netflow.first_switched").getAsLong());
+            doc.setLastSwitched(obj.getAsJsonPrimitive("netflow.last_switched").getAsLong());
+            doc.setInitiator(obj.getAsJsonPrimitive("netflow.initiator").getAsBoolean());
+            state.docs.add(doc);
+        }
+
+        if (hits.size() < state.size) {
+            // We're done
+            final ClearScroll clearScroll = new ClearScroll.Builder().addScrollId(scrollId).build();
+            return executeAsync(clearScroll);
+        } else {
+            // Chain
+            final SearchScroll scroll = new SearchScroll.Builder(scrollId, state.scrollTimeout).build();
+            return executeAsync(scroll).thenCompose(nestedRes -> doScroll(nestedRes, state));
+        }
+    }
+
+
+
     @Override
     public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters) {
-        final String query = searchQueryProvider.getSeriesQuery(step, "netflow.application", filters);
-        return searchAsync(query).thenApply(res -> {
-            // Build a table using the search results
-            final ImmutableTable.Builder<Directional<String>, Long, Double> results = ImmutableTable.builder();
-            final MetricAggregation aggs = res.getAggregations();
-            final TermsAggregation groupedBy = aggs.getTermsAggregation("grouped_by");
-            for (TermsAggregation.Entry groupedByBucket : groupedBy.getBuckets()) {
-                final DateHistogramAggregation bytesAggs = groupedByBucket.getDateHistogramAggregation("bytes_over_time");
-                for (DateHistogramAggregation.DateHistogram dateHistogram : bytesAggs.getBuckets()) {
-                    final Long time = dateHistogram.getTime();
-                    final TermsAggregation directionAgg = dateHistogram.getTermsAggregation("direction");
+        final ScrollState state = new ScrollState();
+        final Search search = new Search.Builder(searchQueryProvider.getSeriesQuery2(state.size, filters))
+                .addType(TYPE)
+                .addSort(new Sort("_doc")) // fastest
+                .setParameter(Parameters.SCROLL, state.scrollTimeout)
+                .build();
 
-                    // Make sure we have values for both directions, since we may only have one bucket returned here
-                    Double bytesWhenInitiator = Double.NaN;
-                    Double bytesWhenNotInitiator = Double.NaN;
-                    for (TermsAggregation.Entry directionBucket : directionAgg.getBuckets()) {
-                        final boolean isInitiator = Boolean.valueOf(directionBucket.getKeyAsString());
-                        final SumAggregation sumAgg = directionBucket.getSumAggregation("total_bytes");
-                        if (isInitiator) {
-                            bytesWhenInitiator = sumAgg.getSum();
-                        } else {
-                            bytesWhenNotInitiator = sumAgg.getSum();
-                        }
-                    }
-                    results.put(new Directional<>(groupedByBucket.getKey(), true), time, bytesWhenInitiator);
-                    results.put(new Directional<>(groupedByBucket.getKey(), false), time, bytesWhenNotInitiator);
-                }
-            }
-            return results.build();
-        });
+        Optional<TimeRangeFilter> timeRangeFilterOptional = filters.stream()
+                .filter(f -> f instanceof TimeRangeFilter)
+                .map(f -> (TimeRangeFilter)f)
+                .findFirst();
+        Long start = null;
+        Long end = null;
+        if (timeRangeFilterOptional.isPresent()) {
+            start = timeRangeFilterOptional.get().getStart();
+            end = timeRangeFilterOptional.get().getEnd();
+        }
+
+        Long finalStart = start;
+        Long finalEnd = end;
+        return executeAsync(search).thenCompose(res -> doScroll(res, state))
+                .thenApply(res -> FlowTimeSeriesProcessor.getSeriesFromDocs(state.docs, step, finalStart, finalEnd));
     }
 
     @Override
@@ -371,20 +405,22 @@ public class ElasticFlowRepository implements FlowRepository {
 
     private CompletableFuture<SearchResult> searchAsync(String query) {
         LOG.debug("Executing asynchronous query: {}", query);
-        final CompletableFuture<SearchResult> future = new CompletableFuture<>();
-        client.executeAsync(new Search.Builder(query)
+        return executeAsync(new Search.Builder(query)
                 .addType(TYPE)
-                .build(), new JestResultHandler<SearchResult>() {
+                .build());
+    }
 
+    private <T extends JestResult> CompletableFuture<T> executeAsync(Action<T> action) {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        client.executeAsync(action, new JestResultHandler<T>() {
             @Override
-            public void completed(SearchResult result) {
+            public void completed(T result) {
                 if (!result.isSucceeded()) {
                     future.completeExceptionally(new Exception(result.getErrorMessage()));
                 } else {
                     future.complete(result);
                 }
             }
-
             @Override
             public void failed(Exception ex) {
                 future.completeExceptionally(ex);

@@ -55,6 +55,7 @@
         <property name="proxy" value="${proxy}" />
         <property name="credentials" ref="credentialsProvider" />
         <property name="requestExecutorFactory" ref="flowRequestExecutorFactory" />
+        <property name="socketTimeout" value="15000" />
     </bean>
 
     <!-- Actually creates the client, but only once -->
