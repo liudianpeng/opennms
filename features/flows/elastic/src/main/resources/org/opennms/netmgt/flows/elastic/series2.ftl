@@ -1,6 +1,6 @@
 {
   "size": ${size?long?c},
-  "_source": ["netflow.last_switched", "netflow.first_switched", "netflow.application", "netflow.bytes", "netflow.initiator],
+  "_source": ["netflow.last_switched", "netflow.first_switched", "netflow.application", "netflow.bytes", "netflow.initiator"],
   "query": {
     "bool": {
       "filter": [

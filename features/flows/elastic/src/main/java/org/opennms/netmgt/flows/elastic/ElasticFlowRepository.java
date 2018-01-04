@@ -181,37 +181,44 @@ public class ElasticFlowRepository implements FlowRepository {
     }
 
     private static class ScrollState {
-        private long size = 10;
+        private long size = 1000;
         private String scrollTimeout = "5m";
         private List<FlowDocument> docs = new ArrayList<>();
     }
 
     private CompletableFuture<JestResult> doScroll(JestResult res, ScrollState state) {
-        final String scrollId = res.getJsonObject().getAsJsonPrimitive("_scroll_id").getAsString();
-        final JsonArray hits = res.getJsonObject().getAsJsonObject("hits").getAsJsonArray("hits");
-        for (JsonElement el : hits) {
-            final FlowDocument doc = new FlowDocument();
-            final JsonObject obj = el.getAsJsonObject().getAsJsonObject("_source");
-            doc.setBytes(obj.getAsJsonPrimitive("netflow.bytes").getAsLong());
-            doc.setApplication(obj.getAsJsonPrimitive("netflow.application").getAsString());
-            doc.setFirstSwitched(obj.getAsJsonPrimitive("netflow.first_switched").getAsLong());
-            doc.setLastSwitched(obj.getAsJsonPrimitive("netflow.last_switched").getAsLong());
-            doc.setInitiator(obj.getAsJsonPrimitive("netflow.initiator").getAsBoolean());
-            state.docs.add(doc);
-        }
+        try {
+            final String scrollId = res.getJsonObject().getAsJsonPrimitive("_scroll_id").getAsString();
+            final JsonArray hits = res.getJsonObject().getAsJsonObject("hits").getAsJsonArray("hits");
+            for (JsonElement el : hits) {
+                final FlowDocument doc = new FlowDocument();
+                final JsonObject obj = el.getAsJsonObject().getAsJsonObject("_source");
+                doc.setBytes(obj.getAsJsonPrimitive("netflow.bytes").getAsLong());
+                if (obj.has("netflow.application")) {
+                    doc.setApplication(obj.getAsJsonPrimitive("netflow.application").getAsString());
+                } else {
+                    doc.setApplication("Other");
+                }
+                doc.setFirstSwitched(obj.getAsJsonPrimitive("netflow.first_switched").getAsLong());
+                doc.setLastSwitched(obj.getAsJsonPrimitive("netflow.last_switched").getAsLong());
+                doc.setInitiator(obj.getAsJsonPrimitive("netflow.initiator").getAsBoolean());
+                state.docs.add(doc);
+            }
 
-        if (hits.size() < state.size) {
-            // We're done
-            final ClearScroll clearScroll = new ClearScroll.Builder().addScrollId(scrollId).build();
-            return executeAsync(clearScroll);
-        } else {
-            // Chain
-            final SearchScroll scroll = new SearchScroll.Builder(scrollId, state.scrollTimeout).build();
-            return executeAsync(scroll).thenCompose(nestedRes -> doScroll(nestedRes, state));
+            if (hits.size() < state.size) {
+                // We're done
+                final ClearScroll clearScroll = new ClearScroll.Builder().addScrollId(scrollId).build();
+                return executeAsync(clearScroll);
+            } else {
+                // Chain
+                final SearchScroll scroll = new SearchScroll.Builder(scrollId, state.scrollTimeout).build();
+                return executeAsync(scroll).thenCompose(nestedRes -> doScroll(nestedRes, state));
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+            throw t;
         }
     }
-
-
 
     @Override
     public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters) {

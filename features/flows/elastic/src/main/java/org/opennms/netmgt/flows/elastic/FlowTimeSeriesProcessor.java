@@ -42,6 +42,19 @@ import com.google.common.collect.Table;
 public class FlowTimeSeriesProcessor {
 
     public static Table<Directional<String>, Long, Double> getSeriesFromDocs(List<FlowDocument> docs, long step, Long start, Long end) {
+        System.err.printf("Processing %d docs for %s to %s with step %d\n", docs.size(), start, end, step);
+        System.err.printf("Number of documents: %d\n", docs.size());
+        long bytesOut = docs.stream()
+                .filter(FlowDocument::isInitiator)
+                .mapToLong(FlowDocument::getBytes)
+                .sum();
+        long bytesIn = docs.stream()
+                .filter(d -> !d.isInitiator())
+                .mapToLong(FlowDocument::getBytes)
+                .sum();
+        System.err.printf("Bytes in: %d, Bytes out: %d, Total: %d\n",
+                bytesIn, bytesOut, bytesIn + bytesOut);
+
         final ImmutableTable.Builder<Directional<String>, Long, Double> results = ImmutableTable.builder();
         if (docs.size() < 1) {
             return results.build();
@@ -104,38 +117,38 @@ public class FlowTimeSeriesProcessor {
                     // TODO: Check this earlier
                     continue;
                 }
-
                 if (windowStart < doc.getLastSwitched() && windowEnd >= doc.getFirstSwitched()) {
                     // We're in range, calculate the rate of the flow
-                    final double flowDurationInSecs = (doc.getLastSwitched() - doc.getFirstSwitched()) * 1000d;
-                    if (flowDurationInSecs > 0) {
-                        final double flowRateInSecs = doc.getBytes() / flowDurationInSecs;
+                    final double flowDurationInMs = (doc.getLastSwitched() - doc.getFirstSwitched());
+                    if (flowDurationInMs > 0) {
+                        final double flowRateInMs = doc.getBytes() / flowDurationInMs;
 
                         // How long is the flow in the window for?
-                        long flowDurationInWindowInMs;
-                        if (doc.getLastSwitched() >= windowEnd) {
-                            flowDurationInWindowInMs = windowEnd - doc.getFirstSwitched();
-                        } else {
-                            flowDurationInWindowInMs = doc.getLastSwitched() - windowStart;
-                        }
-                        flowDurationInWindowInMs = Math.min(flowDurationInWindowInMs, step);
+                        final long flowDurationInWindowInMs = getTimeInWindow(windowStart, windowEnd, doc.getFirstSwitched(), doc.getLastSwitched());
 
                         // Add to the tally
-                        tally += flowRateInSecs * flowDurationInWindowInMs * 1000;
+                        tally += flowRateInMs * flowDurationInWindowInMs;
                     } else {
                         // Must be 0, so space it out evenly in the window
                         tally += doc.getBytes();
                     }
-
                 }
             }
             double multiplier = 1;
-            if (!isSource) {
+            if (isSource) {
                 multiplier *= -1;
             }
-
 
             res.put(new Directional<>(app, isSource), t, tally / step * 1000 * multiplier);
         }
     }
+
+    public static long getTimeInWindow(long windowStart, long windowEnd, long rangeStart, long rangeEnd) {
+        if (rangeStart > windowEnd || rangeEnd < windowStart) {
+            // No overlap
+            return 0L;
+        }
+        return Math.min(windowEnd, rangeEnd) - Math.max(windowStart, rangeStart);
+    }
+
 }

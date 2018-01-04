@@ -111,4 +111,26 @@ public class FlowTimeSeriesProcessorTest {
         response.timestamps = timestamps;
         response.columns = columns;
     }
+
+    private static void populateResponseFromTable(Table<?, Long, Double> table, FlowSeriesResponse response) {
+        final List<Long> timestamps = table.columnKeySet().stream()
+                .sorted(Comparator.naturalOrder())
+                .collect(Collectors.toList());
+
+        final List<List<Double>> columns = new LinkedList<>();
+        for (Object rowKey : table.rowKeySet()) {
+            final List<Double> column = new ArrayList<>(timestamps.size());
+            for (Long ts : timestamps) {
+                Double val = table.get(rowKey, ts);
+                if (val == null || Double.isNaN(val)) {
+                    val = 0d;
+                }
+                column.add(val);
+            }
+            columns.add(column);
+        }
+
+        response.setTimestamps(timestamps);
+        response.setColumns(columns);
+    }
 }

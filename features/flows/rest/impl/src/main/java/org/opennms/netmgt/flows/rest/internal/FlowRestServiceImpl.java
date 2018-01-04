@@ -124,7 +124,7 @@ public class FlowRestServiceImpl implements FlowRestService {
                     response.setStart(effectiveStart);
                     response.setEnd(effectiveEnd);
                     response.setLabels(res.rowKeySet().stream()
-                            .map((d) -> String.format("%s (%s)", d.getValue(), d.isSource() ? "In" : "Out"))
+                            .map((d) -> String.format("%s (%s)", d.getValue(), d.isSource() ? "Out" : "In"))
                             .collect(Collectors.toList()));
                     populateResponseFromTable(res, response);
                     return response;
