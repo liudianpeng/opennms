@@ -220,8 +220,7 @@ public class ElasticFlowRepository implements FlowRepository {
         }
     }
 
-    @Override
-    public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters) {
+    public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries2(long step, List<Filter> filters) {
         final ScrollState state = new ScrollState();
         final Search search = new Search.Builder(searchQueryProvider.getSeriesQuery2(state.size, filters))
                 .addType(TYPE)
@@ -244,6 +243,41 @@ public class ElasticFlowRepository implements FlowRepository {
         Long finalEnd = end;
         return executeAsync(search).thenCompose(res -> doScroll(res, state))
                 .thenApply(res -> FlowTimeSeriesProcessor.getSeriesFromDocs(state.docs, step, finalStart, finalEnd));
+    }
+
+    @Override
+    public CompletableFuture<Table<Directional<String>, Long, Double>> getSeries(long step, List<Filter> filters) {
+        Optional<TimeRangeFilter> timeRangeFilterOptional = filters.stream()
+                .filter(f -> f instanceof TimeRangeFilter)
+                .map(f -> (TimeRangeFilter)f)
+                .findFirst();
+        if (!timeRangeFilterOptional.isPresent()) {
+            throw new IllegalStateException("Need start and end");
+        }
+
+        final Long start = timeRangeFilterOptional.get().getStart();
+        final Long end = timeRangeFilterOptional.get().getEnd();
+
+        final String query = searchQueryProvider.getSeriesWithPlugin(start, end, step, "netflow.application", filters);
+        return searchAsync(query).thenApply(res -> {
+            // Build a table using the search results
+            final ImmutableTable.Builder<Directional<String>, Long, Double> results = ImmutableTable.builder();
+            final MetricAggregation aggs = res.getAggregations();
+            final TermsAggregation directionAgg = aggs.getTermsAggregation("direction");
+            for (TermsAggregation.Entry directionBucket : directionAgg.getBuckets()) {
+                final boolean isInitiator = Boolean.valueOf(directionBucket.getKeyAsString());
+                final TermsAggregation groupedBy = directionBucket.getTermsAggregation("grouped_by");
+                for (TermsAggregation.Entry groupedByBucket : groupedBy.getBuckets()) {
+                    final TimeSliceAggregation bytesAggs = groupedByBucket.getAggregation("bytes_over_time", TimeSliceAggregation.class);
+                    for (TimeSliceAggregation.DateHistogram dateHistogram : bytesAggs.getBuckets()) {
+                        final Long time = dateHistogram.getTime();
+                        final Double bytes = dateHistogram.getValue();
+                        results.put(new Directional<>(groupedByBucket.getKey(), isInitiator), time, bytes);
+                    }
+                }
+            }
+            return results.build();
+        });
     }
 
     @Override
